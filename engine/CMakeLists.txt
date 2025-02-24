@@ -5,5 +5,9 @@ target_link_libraries(luwuw_engine PRIVATE
     SDL3::SDL3
     SDL3_ttf::SDL3_ttf
     Luau.VM
+    Luau.Common
+    Luau.Config
+    Luau.CodeGen
+    Luau.CLI.lib
     Luau.Compiler
 )

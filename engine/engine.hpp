@@ -13,3 +13,4 @@ inline SDL_Renderer* Renderer{};
 inline TTF_TextEngine* Text_engine{};
 inline lua_State* Lua_state{};
 
+void setupState(lua_State* L);

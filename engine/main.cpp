@@ -9,6 +9,7 @@
 #include <iostream>
 #include <print>
 #include <fstream>
+#include <Luau/Require.h>
 
 struct Defer{
     const std::function<void()> fn;
@@ -20,8 +21,8 @@ constexpr SDL_Color white{0xff, 0xff,0xff,0xff};
 
 auto main(int argc, char** argv) -> int {
     std::ofstream logger{"log.txt"};
-    Lua_state = luaL_newstate();
-    luaL_openlibs(Lua_state);
+    lua_State* L = luaL_newstate();
+    setupState(L);
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
     SDL_CreateWindowAndRenderer(
