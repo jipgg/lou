@@ -1,0 +1,57 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "msvc",
+            "hidden": false,
+            "generator": "Visual Studio 17",
+            "binaryDir": "${sourceDir}/cmake",
+            "cacheVariables": {
+                "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/bin",
+                "CMAKE_GENERATOR_PLATFORM": "x64",
+                "BUILD_SHARED_LIBS": "ON"
+            }
+
+        },
+        {
+            "name": "clangd",
+            "hidden": false,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/clangd",
+            "cacheVariables": {
+                "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/bin",
+                "BUILD_SHARED_LIBS": "ON"
+            }
+
+        },
+        {
+            "name": "clang-cl",
+            "hidden": false,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/cmake",
+            "cacheVariables": {
+                "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/bin",
+                "CMAKE_C_COMPILER": "clang-cl",
+                "CMAKE_CXX_COMPILER": "clang-cl",
+                "CMAKE_GENERATOR_PLATFORM": "x64"
+            }
+
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "engine",
+            "configurePreset": "msvc",
+            "targets": [
+                "luwuw_engine"
+            ]
+        },
+        {
+            "name": "engine-ninja",
+            "configurePreset": "clangd",
+            "targets": [
+                "luwuw_engine"
+            ]
+        }
+  ]
+}

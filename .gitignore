@@ -1,0 +1,8 @@
+bin/
+cmake/
+lsp/
+.nvim.lua
+.luaurc
+
+output_log
+error_log

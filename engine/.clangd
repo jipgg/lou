@@ -1,0 +1,11 @@
+CompileFlags:
+  Add:
+    - "-std=c++23"
+    - "-fms-compatibility"
+    - "-fms-extensions"
+    - "-fdelayed-template-parsing"
+    - "-I../extern/SDL/include"
+    - "-I../extern/SDL_ttf/include"
+    - "-I../extern/Luau/VM/include"
+    - "-I../extern/Luau/Compiler/include"
+    - "-I../extern/Luau/CodeGen/include"

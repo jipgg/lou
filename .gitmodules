@@ -1,0 +1,9 @@
+[submodule "extern/SDL"]
+	path = extern/SDL
+	url = https://github.com/libsdl-org/SDL
+[submodule "extern/Luau"]
+	path = extern/Luau
+	url = https://github.com/luau-lang/luau
+[submodule "extern/SDL_ttf"]
+	path = extern/SDL_ttf
+	url = https://github.com/libsdl-org/SDL_ttf
