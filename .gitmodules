@@ -7,3 +7,6 @@
 [submodule "extern/SDL_ttf"]
 	path = extern/SDL_ttf
 	url = https://github.com/libsdl-org/SDL_ttf
+[submodule "extern/imgui"]
+	path = extern/imgui
+	url = https://github.com/ocornut/imgui

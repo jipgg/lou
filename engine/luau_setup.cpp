@@ -2,6 +2,11 @@
 #include <Luau/Compiler.h>
 #include <Luau/CodeGen.h>
 #include <Luau/Require.h>
+#include <fstream>
+#include "util.hpp"
+#include <print>
+#include <iostream>
+namespace fs = std::filesystem;
 
 static bool codegen = false;
 
@@ -219,13 +224,43 @@ static int lua_callgrind(lua_State* L)
 }
 #endif
 
-void setupState(lua_State* L) {
+static auto loadScript(lua_State* L, const Path& path) -> std::expected<decltype(L), std::string> {
+    auto mainThread = lua_mainthread(L);
+    auto scriptThread = lua_newthread(mainThread);
+    std::ifstream file{path};
+    if (!file.is_open()) {
+        return std::unexpected(std::format("failed to open {}", path.string()));
+    }
+    std::string line, contents;
+    while (std::getline(file, line)) contents.append(line + '\n');
+    auto bytecode = Luau::compile(contents, copts());
+    auto chunkname = std::format("=script:{}:", fs::relative(path).string());
+    auto status = luau_load(scriptThread, chunkname.c_str(), bytecode.data(), bytecode.size(), 0);
+    if (status != LUA_OK) {
+        std::string errorMessage{lua_tostring(scriptThread, 1)};
+        lua_pop(L, 1);
+        return std::unexpected{errorMessage};
+    }
+    return scriptThread;
+}
+static auto lprint(lua_State* L) -> int {
+    for (int i{1}; i <= lua_gettop(L); ++i) {
+        size_t len{};
+        auto str = luaL_tolstring(L, i, &len);
+        std::println(fout, "{}", std::string_view(str, len));
+        fout.flush();
+    }
+    return 0;
+}
+
+auto initState(lua_State* L, const Path& init_script) -> void {
     if (codegen) Luau::CodeGen::create(L);
     luaL_openlibs(L);
     static const luaL_Reg funcs[] = {
         {"loadstring", lua_loadstring},
         {"require", lua_require},
         {"collectgarbage", lua_collectgarbage},
+        {"print", lprint},
 #ifdef CALLGRIND
         {"callgrind", lua_callgrind},
 #endif
@@ -237,4 +272,16 @@ void setupState(lua_State* L) {
     lua_pop(L, 1);
 
     luaL_sandbox(L);
+    auto r =  loadScript(L, init_script);
+    if (!r) {
+        ferr << r.error() << std::endl;
+        return;
+    }
+    if (auto ok = lua_resume(r.value(), L, 0); ok != LUA_OK) {
+        std::println(ferr, "{}", lua_tostring(r.value(), -1));
+        ferr.flush();
+    }
+    /*if (auto ok = lua_pcall(L, 0, 0, 0); ok != LUA_OK) {*/
+    /*    std::println(ferr, "{}", lua_tostring(L, -1));*/
+    /*}*/
 }

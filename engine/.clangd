@@ -13,3 +13,5 @@ CompileFlags:
     - "-I../extern/Luau/Config/include"
     - "-I../extern/Luau/Common/include"
     - "-I../extern/Luau/Ast/include"
+    - "-I../extern/imgui"
+    - "-I../extern/imgui/backends"

@@ -10,4 +10,5 @@ target_link_libraries(luwuw_engine PRIVATE
     Luau.CodeGen
     Luau.CLI.lib
     Luau.Compiler
+    imgui
 )
