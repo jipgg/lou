@@ -243,24 +243,19 @@ static auto loadScript(lua_State* L, const Path& path) -> std::expected<decltype
     }
     return scriptThread;
 }
-static auto lprint(lua_State* L) -> int {
-    for (int i{1}; i <= lua_gettop(L); ++i) {
-        size_t len{};
-        auto str = luaL_tolstring(L, i, &len);
-        std::println(fout, "{}", std::string_view(str, len));
-        fout.flush();
-    }
+static auto lua_print(lua_State* L) -> int {
+    engine.print(luaL_checkstring(L, 1));
     return 0;
 }
 
-auto initState(lua_State* L, const Path& init_script) -> void {
+auto setupState(lua_State* L) -> void {
     if (codegen) Luau::CodeGen::create(L);
     luaL_openlibs(L);
     static const luaL_Reg funcs[] = {
         {"loadstring", lua_loadstring},
         {"require", lua_require},
         {"collectgarbage", lua_collectgarbage},
-        {"print", lprint},
+        {"print", lua_print},
 #ifdef CALLGRIND
         {"callgrind", lua_callgrind},
 #endif
@@ -270,18 +265,14 @@ auto initState(lua_State* L, const Path& init_script) -> void {
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, NULL, funcs);
     lua_pop(L, 1);
+    const luaL_Reg gamelib[] = {
+        {"bindToDraw", [](lua_State* L) -> int {
+            engine.callbacks.draw.push_back(Ref{L, 1});
+            return 0;
+        }},
+        {nullptr, nullptr}
+    };
+    luaL_register(L, "game", gamelib);
 
     luaL_sandbox(L);
-    auto r =  loadScript(L, init_script);
-    if (!r) {
-        ferr << r.error() << std::endl;
-        return;
-    }
-    if (auto ok = lua_resume(r.value(), L, 0); ok != LUA_OK) {
-        std::println(ferr, "{}", lua_tostring(r.value(), -1));
-        ferr.flush();
-    }
-    /*if (auto ok = lua_pcall(L, 0, 0, 0); ok != LUA_OK) {*/
-    /*    std::println(ferr, "{}", lua_tostring(L, -1));*/
-    /*}*/
 }
