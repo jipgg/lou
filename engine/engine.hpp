@@ -10,6 +10,8 @@
 #include <string>
 #include <lualib.h>
 #include <fstream>
+#include "comp.hpp"
+#include "util.hpp"
 #include <chrono>
 #include <sstream>
 #include <print>
@@ -67,25 +69,32 @@ public:
         state_ = nullptr;
     }
 };
-enum class Light_Type_Tag {
-    game_state
-};
-enum class Type_Tag {
-    rect,
-    point,
-    color,
-    texture,
-    window
+enum class Tag {
+    Engine,
+    Rect,
+    Point,
+    Color,
+    Texture,
+    Window,
+    Renderer,
 };
 
-struct Game_State_Meta {
+struct Engine_Meta {
     static auto index(lua_State* L) -> int;
     static auto newindex(lua_State* L) -> int;
     static auto namecall(lua_State* L) -> int;
     static void push_metatable(lua_State* L);
 };
 
-struct Game_State {
+struct Window_Meta {
+    static auto index(lua_State* L) -> int;
+    static auto newindex(lua_State* L) -> int;
+    static auto namecall(lua_State* L) -> int;
+    static auto getmetatable(lua_State* L) -> void;
+};
+
+
+struct Engine {
     using Clock_t = std::chrono::steady_clock;
     using Time_Point_t = std::chrono::time_point<Clock_t>;
     struct {
@@ -146,47 +155,51 @@ auto luaopen_rect(lua_State* L) -> void;
 auto initRect(lua_State* L) -> void;
 auto rectCtor(lua_State* L) -> int;
 
-template <Light_Type_Tag Tag> struct Mapped_Light_Type;
-template <Type_Tag Tag> struct Mapped_Type;
+template <Tag Tag> struct Mapped_Type;
 #define Map_Type_To_Tag(TAG, TYPE)\
-template <> struct Mapped_Type<Type_Tag::TAG> {using Type = TYPE;}
+template <> struct Mapped_Type<Tag::TAG> {using Type = TYPE;}
 
-Map_Type_To_Tag(point, SDL_Point);
-Map_Type_To_Tag(rect, SDL_Rect);
-Map_Type_To_Tag(color, SDL_Color);
+Map_Type_To_Tag(Point, SDL_Point);
+Map_Type_To_Tag(Rect, SDL_Rect);
+Map_Type_To_Tag(Color, SDL_Color);
+Map_Type_To_Tag(Engine, Engine);
 
 #undef Map_Type_To_Tag
-#define Map_Type_To_Light_Tag(TAG, TYPE)\
-template <> struct Mapped_Light_Type<Light_Type_Tag::TAG> {using Type = TYPE;}
 
-Map_Type_To_Light_Tag(game_state, Game_State);
-
-#undef Map_Type_To_Light_Tag
-
-
-template <Type_Tag Tag, class Ty = Mapped_Type<Tag>::Type>
-constexpr auto new_object(lua_State* L) -> Ty& {
+template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
+constexpr auto new_type(lua_State* L) -> Ty* {
     auto p = static_cast<Ty*>(
         lua_newuserdatataggedwithmetatable(L, sizeof(Ty), static_cast<int>(Tag))
     );
     std::memset(p, 0, sizeof(Ty));
-    return *p;
+    return p;
 }
-constexpr auto new_rect(auto L) -> decltype(auto) {
-    return new_object<Type_Tag::rect, SDL_Rect>(L);
+template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
+constexpr auto push_type(lua_State* L, Ty* ptr) -> void {
+    lua_pushlightuserdatatagged(L, ptr, static_cast<int>(Tag));
+    lua_getuserdatametatable(L, static_cast<int>(Tag));
+    lua_setmetatable(L, -2);
 }
-constexpr auto new_color(auto L) -> decltype(auto) {
-    return new_object<Type_Tag::color, SDL_Color>(L);
-}
-constexpr auto new_point(auto L) -> decltype(auto) {
-    return new_object<Type_Tag::point, SDL_Point>(L);
-}
-template <Light_Type_Tag Tag, class Ty = Mapped_Light_Type<Tag>::Type>
-[[nodiscard]] auto to_light_userdata(lua_State* L, int idx) -> decltype(auto) {
-    return static_cast<Ty*>(lua_tolightuserdatatagged(L, idx, static_cast<int>(Light_Type_Tag::game_state)));
-}
-template <Type_Tag Tag, class Ty = Mapped_Type<Tag>::Type>
-[[nodiscard]] auto to_userdata(lua_State* L, int idx) -> decltype(auto) {
-    return static_cast<Ty*>(lua_tolightuserdatatagged(L, idx, static_cast<int>(Light_Type_Tag::game_state)));
+template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
+constexpr auto is_type(lua_State* L, int idx) -> Ty* {
+    if (lua_islightuserdata(L, idx)) {
+        return lua_lightuserdatatag(L, idx) == int(Tag);
+    } else {
+        return lua_userdatatag(L, idx) == int(Tag);
+    }
 }
 
+template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
+constexpr auto to_type(lua_State* L, int idx) -> Ty* {
+    if (lua_islightuserdata(L, idx)) {
+        return static_cast<Ty*>(lua_tolightuserdatatagged(L, idx, int(Tag)));
+    } else {
+        return static_cast<Ty*>(lua_touserdatatagged(L, idx, int(Tag)));
+    }
+}
+
+template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
+constexpr auto check_type(lua_State* L, int idx) -> Ty* {
+    constexpr auto info = comp::enum_info<Tag, Tag>();
+    if (not is_type<Tag>()) util::type_error(L, info.name);
+}

@@ -1,5 +1,5 @@
 #pragma once
-#include "compenum.hpp"
+#include "comp.hpp"
 
 enum class Namecall_Atom: int16_t {
     print,

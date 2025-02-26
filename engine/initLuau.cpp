@@ -249,7 +249,7 @@ static auto load_script(lua_State* L, const fs::path& path) -> std::expected<dec
 }
 static auto user_atom(const char* str, size_t len) -> int16_t {
     std::string_view namecall{str, len};
-    constexpr std::array info = compenum::to_array<Namecall_Atom>();
+    constexpr std::array info = comp::to_array<Namecall_Atom>();
     auto found = rngs::find_if(info, [&namecall](decltype(info[0])& e) {
         return e.name == namecall;
     });
@@ -257,11 +257,11 @@ static auto user_atom(const char* str, size_t len) -> int16_t {
     return static_cast<int16_t>(found->value);
 }
 
-auto Game_State::init_luau() -> void {
+auto Engine::init_luau() -> void {
     raii.luau.reset(luaL_newstate());
     auto L = lua_state();
     lua_callbacks(L)->useratom = user_atom;
-    lua_setlightuserdataname(L, static_cast<int>(Light_Type_Tag::game_state), "Game_State");
+    lua_setlightuserdataname(L, static_cast<int>(Tag::Engine), "Engine");
     if (codegen) Luau::CodeGen::create(L);
     luaL_openlibs(L);
     static const luaL_Reg funcs[] = {
@@ -277,8 +277,8 @@ auto Game_State::init_luau() -> void {
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, NULL, funcs);
     lua_pop(L, 1);
-    lua_pushlightuserdatatagged(L, this, static_cast<int>(Light_Type_Tag::game_state));
-    Game_State_Meta::push_metatable(L);
+    lua_pushlightuserdatatagged(L, this, static_cast<int>(Tag::Engine));
+    Engine_Meta::push_metatable(L);
     lua_setmetatable(L, -2);
     lua_setglobal(L, "game");
 

@@ -6,7 +6,7 @@
 #include <Luau/Compiler.h>
 namespace fs = std::filesystem;
 
-static void init_window_and_renderer(Game_State* game, Game_State::Init_Info e) {
+static void init_window_and_renderer(Engine* game, Engine::Init_Info e) {
     SDL_Renderer* renderer{};
     SDL_Window* window{};
     SDL_CreateWindowAndRenderer(
@@ -22,7 +22,7 @@ static void init_window_and_renderer(Game_State* game, Game_State::Init_Info e) 
     game->raii.renderer.reset(renderer);
 }
 
-void Game_State::init(Game_State::Init_Info e) {
+void Engine::init(Engine::Init_Info e) {
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
     init_window_and_renderer(this, e);

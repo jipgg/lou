@@ -6,7 +6,7 @@
 #include <array>
 #include <cassert>
 #include <ranges>
-namespace compenum {
+namespace comp {
 template<class Val, Val v>
 struct Value {
     static const constexpr auto value = v;
@@ -48,7 +48,7 @@ struct Enum_Item {
 };
 namespace detail {
 #if defined (_MSC_VER)//msvc compiler
-template <Enum Type, Type value>
+template <Enum Ty, Ty Val>
 consteval Enum_Info enum_info() {
     const std::string_view raw{std::source_location::current().function_name()};
     const std::string enum_t_keyw{"<enum "};
@@ -66,16 +66,16 @@ consteval Enum_Info enum_info() {
         .type = enum_t,
         .name = enum_v,
         .raw = raw,
-        .value = int(value),
+        .value = static_cast<int>(Val),
     };
 }
 #elif defined(__clang__) || defined(__GNUC__)
-template <Enum Type, Type value>
+template <Enum Ty, Ty Val>
 consteval Enum_info enum_info() {
     using sv = std::string_view;
     const sv raw{std::source_location::current().function_name()};
-    const sv enum_find{"Type = "}; 
-    const sv value_find{"value = "};
+    const sv enum_find{"Ty = "}; 
+    const sv value_find{"Val = "};
     sv enum_t = raw.substr(raw.find(enum_find) + enum_find.size());
     enum_t = enum_t.substr(0, enum_t.find(";"));
     sv enum_v = raw.substr(raw.find(value_find) + value_find.size());
@@ -87,35 +87,35 @@ consteval Enum_info enum_info() {
         .type = enum_t,
         .name = enum_v,
         .raw = raw,
-        .index = int(value),
+        .index = static_cast<int>(Val),
     };
 }
 #else
 static_assert(false, "platform not supported")
 #endif
 }
-template <Enum Type, int value>
-consteval Enum_Info info() {
-    return detail::enum_info<Type, static_cast<Type>(value)>();
+template <auto Val, Enum Ty = decltype(Val)>
+consteval Enum_Info enum_info() {
+    return detail::enum_info<Ty, static_cast<Ty>(Val)>();
 }
-template <Enum Type, int value>
-constexpr Enum_Item<Type> item() {
-    constexpr auto inf = info<Type, value>();
-    return Enum_Item<Type>{
-        .name = inf.name,
-        .value = value,
+template <auto Val, Enum Ty = decltype(Val)>
+constexpr Enum_Item<Ty> enum_item() {
+    constexpr auto info = enum_info<Ty, Val>();
+    return Enum_Item<Ty>{
+        .name = info.name,
+        .value = static_cast<int>(Val),
     };
 }
-template <Enum Type, int size = count<Type>()> 
-consteval std::array<Enum_Info, size> to_array() {
-    std::array<Enum_Info, size> arr{};
-    inline_for<size>([&arr](auto i) {
-        arr[i] = info<Type, i>();
+template <Enum Ty, int Count = count<Ty>()> 
+consteval std::array<Enum_Info, Count> to_array() {
+    std::array<Enum_Info, Count> arr{};
+    inline_for<Count>([&arr](auto i) {
+        arr[i] = enum_info<static_cast<Ty>(i.value)>();
     });
     return arr;
 }
 template <Enum Type, int size = count<Type>()>
-constexpr Enum_Item<Type> item(std::string_view name) {
+constexpr Enum_Item<Type> enum_item(std::string_view name) {
     constexpr auto array = to_array<Type, size>();
     auto found_it = std::ranges::find_if(array, [&name](const Enum_Info& e) {return e.name == name;});
     assert(found_it != std::ranges::end(array));

@@ -2,7 +2,7 @@
 
 constexpr SDL_Color white{0xff, 0xff ,0xff, 0xff};
 
-static void render_console(Game_State* game) {
+static void render_console(Engine* game) {
     auto& io = ImGui::GetIO();
     if (ImGui::IsKeyPressed(ImGuiKey_F9)) {
         game->console.open = not game->console.open;
@@ -14,7 +14,7 @@ static void render_console(Game_State* game) {
         ImGui::End();
     }
 }
-auto Game_State::draw() -> void {
+auto Engine::draw() -> void {
     auto render = renderer();
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplSDLRenderer3_NewFrame();
