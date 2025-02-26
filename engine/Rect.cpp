@@ -26,7 +26,7 @@ auto initRect(lua_State *L) -> void {
         luaL_register(L, nullptr, meta);
         lua_pushstring(L, "Rect");
         lua_setfield(L, -2, "__type");
-        lua_setuserdatametatable(L, int(Tag::Rect), -1);
+        lua_setuserdatametatable(L, int(tag::rect), -1);
     }
     lua_pop(L, 1);
     lua_pushcfunction(L, lua_rectCtor, "rectCtor");

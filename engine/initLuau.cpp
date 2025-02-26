@@ -224,7 +224,7 @@ static int lua_callgrind(lua_State* L)
 }
 #endif
 
-static auto loadScript(lua_State* L, const Path& path) -> std::expected<decltype(L), std::string> {
+static auto loadScript(lua_State* L, const fs::path& path) -> std::expected<decltype(L), std::string> {
     auto mainThread = lua_mainthread(L);
     auto scriptThread = lua_newthread(mainThread);
     std::ifstream file{path};
@@ -243,19 +243,17 @@ static auto loadScript(lua_State* L, const Path& path) -> std::expected<decltype
     }
     return scriptThread;
 }
-static auto lua_print(lua_State* L) -> int {
-    engine.print(luaL_checkstring(L, 1));
-    return 0;
-}
 
-auto setupState(lua_State* L) -> void {
+auto game::init_luau() -> void {
+    raii.luau.reset(luaL_newstate());
+    auto L = lua();
+    lua_setlightuserdataname(L, static_cast<int>(light_tag::game), "game");
     if (codegen) Luau::CodeGen::create(L);
     luaL_openlibs(L);
     static const luaL_Reg funcs[] = {
         {"loadstring", lua_loadstring},
         {"require", lua_require},
         {"collectgarbage", lua_collectgarbage},
-        {"print", lua_print},
 #ifdef CALLGRIND
         {"callgrind", lua_callgrind},
 #endif
@@ -265,14 +263,8 @@ auto setupState(lua_State* L) -> void {
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, NULL, funcs);
     lua_pop(L, 1);
-    const luaL_Reg gamelib[] = {
-        {"bindToDraw", [](lua_State* L) -> int {
-            engine.callbacks.draw.push_back(Ref{L, 1});
-            return 0;
-        }},
-        {nullptr, nullptr}
-    };
-    luaL_register(L, "game", gamelib);
+    lua_pushlightuserdatatagged(L, this, static_cast<int>(light_tag::game));
+    lua_setglobal(L, "game");
 
     luaL_sandbox(L);
 }

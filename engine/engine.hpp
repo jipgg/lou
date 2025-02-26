@@ -1,6 +1,9 @@
 #pragma once
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_sdlrenderer3.h>
+#include <imgui.h>
 #include <memory>
 #include <expected>
 #include <filesystem>
@@ -12,103 +15,118 @@
 #include <print>
 #include <functional>
 
-class Ref {
+class ref_t {
     int ref_;
     lua_State* state_;
 public:
-    Ref(lua_State* L, int idx):
+    ref_t(): ref_(-1), state_(nullptr) {}
+    ref_t(lua_State* L, int idx):
         ref_(lua_ref(L, idx)),
         state_(lua_mainthread(L)) {
     }
-    Ref(const Ref& other) {
+    ref_t(const ref_t& other) {
         state_ = other.state_;
-        push(state_);
-        ref_ = lua_ref(state_, -1);
-        lua_pop(state_, 1);
+        if (state_) {
+            push(state_);
+            ref_ = lua_ref(state_, -1);
+            lua_pop(state_, 1);
+        }
     }
-    Ref(Ref&& other) {
+    ref_t(ref_t&& other) {
         state_ = other.state_;
         ref_ = other.ref_;
         other.state_ = nullptr;
     }
-    Ref& operator=(const Ref& other) {
-        *this = Ref(other);
+    ref_t& operator=(const ref_t& other) {
+        *this = ref_t(other);
         return *this;
     }
-    Ref& operator=(Ref&& other) noexcept {
-        *this = Ref(std::move(other));
+    ref_t& operator=(ref_t&& other) noexcept {
+        *this = ref_t(std::move(other));
         return *this;
     }
-    ~Ref() {
+    ~ref_t() {
         if (state_) {
             lua_unref(state_, ref_);
         }
     }
+    operator bool() const {
+        return state_;
+    }
     void push(lua_State* L) {
         lua_getref(L, ref_);
     }
+    void release() {
+        state_ = nullptr;
+    }
+};
+enum class light_tag {
+    game
+};
+enum class tag {
+    rect,
+    point,
+    color,
+    texture,
+    window
 };
 
-enum class Tag {
-    Rect,
-    Point,
-    Color,
-    Texture,
-    Window
-};
-
-struct Engine {
-    void init();
-    void step();
-    bool running{true};
+struct game {
+    struct {
+        using clock = std::chrono::steady_clock;
+        using time_point = std::chrono::time_point<clock>;
+        time_point last_frame_start{clock::now()};
+        SDL_Event event;
+    } cache;
     struct {
         template <class Ty>
-        using Ptr = std::unique_ptr<Ty, void(*)(Ty*)>; 
-        Ptr<SDL_Renderer> renderer{nullptr, SDL_DestroyRenderer};
-        Ptr<SDL_Window> window{nullptr, SDL_DestroyWindow};
-        Ptr<TTF_TextEngine> text{nullptr, TTF_DestroyRendererTextEngine};
-        Ptr<lua_State> lua{nullptr, lua_close};
-    } data;
-    auto lstate() -> lua_State* {return data.lua.get();}
+        using ptr = std::unique_ptr<Ty, void(*)(Ty*)>; 
+        ptr<SDL_Renderer> renderer{nullptr, SDL_DestroyRenderer};
+        ptr<SDL_Window> window{nullptr, SDL_DestroyWindow};
+        ptr<TTF_TextEngine> text_engine{nullptr, TTF_DestroyRendererTextEngine};
+        ptr<lua_State> luau{nullptr, lua_close};
+    } raii;
     struct {
-        std::vector<Ref> update;
-        std::vector<Ref> draw;
-        std::vector<Ref> quit;
+        ref_t update{};
+        ref_t draw{}; 
+        ref_t shutdown{};
     } callbacks;
     struct {
         bool open{true};
-        std::stringstream stream;
+        std::stringstream out;
+        std::stringstream err;
     } console;
+    bool running{true};
+    struct init_t {
+        std::string title{"engine"};
+        int width{800};
+        int height{600};
+        SDL_WindowFlags flags{SDL_WINDOW_RESIZABLE};
+    };
+    void init(init_t data);
+    void init_luau();
+    void update();
+    void draw();
     template <class ...TyArgs>
     void print(const std::format_string<TyArgs...>& fmt, TyArgs&&...args) {
-        console.stream << std::format("[{}] ", std::chrono::system_clock::now());
-        console.stream <<  std::format(fmt, std::forward<TyArgs>(args)...);
-        console.stream << '\n';
+        console.out << std::format("[{}] ", std::chrono::system_clock::now());
+        console.out <<  std::format(fmt, std::forward<TyArgs>(args)...);
+        console.out << '\n';
     } 
     void print(std::string_view str) {
-        console.stream << std::format("[{}] {}\n", std::chrono::system_clock::now(), str);
+        console.out << std::format("[{}] {}\n", std::chrono::system_clock::now(), str);
     }
+    auto lua() -> lua_State* {return raii.luau.get();}
+    auto renderer() -> SDL_Renderer* {return raii.renderer.get();}
+    auto window() -> SDL_Window* {return raii.window.get();}
+    auto text_engine() -> TTF_TextEngine* {return raii.text_engine.get();}
 };
-inline Engine engine{};
 
-using Path = std::filesystem::path;
-auto setupState(lua_State* L) -> void;
-inline std::ofstream fout{"log.txt"};
-inline std::ofstream ferr{"errlog.txt"};
-auto renderConsole() -> void;
-auto getConsole() -> std::stringstream&;
-auto writeConsole(std::string_view msg) -> void;
 auto luaopen_rect(lua_State* L) -> void;
 auto initRect(lua_State* L) -> void;
 auto rectCtor(lua_State* L) -> int;
-auto luapush_graphics(lua_State* L) -> int;
-struct Defer{
-    const std::function<void()> fn;
-    Defer(const std::function<void()>& fn): fn(fn) {}
-    ~Defer() {}
-};
 
-template <Tag Tg, class Ty>
+template <tag Tg, class Ty>
 constexpr auto newObject(lua_State* L) -> Ty& {
     auto p = static_cast<Ty*>(
         lua_newuserdatataggedwithmetatable(L, sizeof(Ty), static_cast<int>(Tg))
@@ -117,12 +135,12 @@ constexpr auto newObject(lua_State* L) -> Ty& {
     return *p;
 }
 constexpr auto newRect(auto L) -> decltype(auto) {
-    return newObject<Tag::Rect, SDL_Rect>(L);
+    return newObject<tag::rect, SDL_Rect>(L);
 }
 constexpr auto newColor(auto L) -> decltype(auto) {
-    return newObject<Tag::Color, SDL_Color>(L);
+    return newObject<tag::color, SDL_Color>(L);
 }
 constexpr auto newPoint(auto L) -> decltype(auto) {
-    return newObject<Tag::Point, SDL_Point>(L);
+    return newObject<tag::point, SDL_Point>(L);
 }
 
