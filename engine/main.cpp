@@ -19,16 +19,16 @@ namespace fs = std::filesystem;
 constexpr SDL_Color white{0xff, 0xff ,0xff, 0xff};
 
 auto main(int argc, char** argv) -> int {
-    game game;
-    game.init({
+    Game_State state;
+    state.init({
         .title{"test"},
         .width = 1920,
         .height = 1080,
         .flags = SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE,
     });
-    while(game.running) {
-        game.update();
-        game.draw();
+    while(state.running) {
+        state.update();
+        state.draw();
         SDL_Delay(16);
     }
     return 0;

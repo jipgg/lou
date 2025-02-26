@@ -2,7 +2,7 @@
 
 constexpr SDL_Color white{0xff, 0xff ,0xff, 0xff};
 
-static void render_console(game* game) {
+static void render_console(Game_State* game) {
     auto& io = ImGui::GetIO();
     if (ImGui::IsKeyPressed(ImGuiKey_F9)) {
         game->console.open = not game->console.open;
@@ -14,17 +14,17 @@ static void render_console(game* game) {
         ImGui::End();
     }
 }
-auto game::draw() -> void {
+auto Game_State::draw() -> void {
     auto render = renderer();
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplSDLRenderer3_NewFrame();
     ImGui::NewFrame();
     SDL_SetRenderDrawColor(render, 0x0, 0x0, 0x0, 0x0);
     SDL_RenderClear(render);
-    auto L = lua();
     if (callbacks.draw) {
+        auto L = lua_state();
         callbacks.draw.push(L);
-        if (lua_pcall(lua(), 0, 0, 0) != LUA_OK) {
+        if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
             print("{}", lua_tostring(L, -1));
             lua_pop(L, 1);
         }

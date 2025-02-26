@@ -6,7 +6,7 @@
 #include <Luau/Compiler.h>
 namespace fs = std::filesystem;
 
-static void init_window_and_renderer(game* game, game::init_t e) {
+static void init_window_and_renderer(Game_State* game, Game_State::Init_Info e) {
     SDL_Renderer* renderer{};
     SDL_Window* window{};
     SDL_CreateWindowAndRenderer(
@@ -22,7 +22,7 @@ static void init_window_and_renderer(game* game, game::init_t e) {
     game->raii.renderer.reset(renderer);
 }
 
-void game::init(game::init_t e) {
+void Game_State::init(Game_State::Init_Info e) {
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
     init_window_and_renderer(this, e);
@@ -44,8 +44,8 @@ void game::init(game::init_t e) {
     while (std::getline(file, line)) contents.append(line + '\n');
     auto bytecode = Luau::compile(contents, {});
     auto chunkname = std::format("=script:{}:", fs::relative(path).string());
-    auto status = luau_load(lua(), chunkname.c_str(), bytecode.data(), bytecode.size(), 0);
-    if (lua_pcall(lua(), 0, 0, 0) != LUA_OK) {
-        print(lua_tostring(lua(), -1));
+    auto status = luau_load(lua_state(), chunkname.c_str(), bytecode.data(), bytecode.size(), 0);
+    if (lua_pcall(lua_state(), 0, 0, 0) != LUA_OK) {
+        print(lua_tostring(lua_state(), -1));
     }
 }

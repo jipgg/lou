@@ -13,7 +13,7 @@ auto lua_rectCtor(lua_State* L) -> int {
         .w = luaL_optinteger(L, 3, 0),
         .h = luaL_optinteger(L, 4, 0),
     };
-    newRect(L) = rect;
+    new_rect(L) = rect;
     return 1;
 }
 
@@ -26,7 +26,7 @@ auto initRect(lua_State *L) -> void {
         luaL_register(L, nullptr, meta);
         lua_pushstring(L, "Rect");
         lua_setfield(L, -2, "__type");
-        lua_setuserdatametatable(L, int(tag::rect), -1);
+        lua_setuserdatametatable(L, int(Type_Tag::rect), -1);
     }
     lua_pop(L, 1);
     lua_pushcfunction(L, lua_rectCtor, "rectCtor");

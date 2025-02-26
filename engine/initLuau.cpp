@@ -2,11 +2,15 @@
 #include <Luau/Compiler.h>
 #include <Luau/CodeGen.h>
 #include <Luau/Require.h>
+#include <ranges>
+#include <algorithm>
 #include <fstream>
 #include "util.hpp"
 #include <print>
 #include <iostream>
+#include "Namecall_Atom.hpp"
 namespace fs = std::filesystem;
+namespace rngs = std::ranges;
 
 static bool codegen = false;
 
@@ -117,7 +121,7 @@ static int lua_require(lua_State* L) {
         resolvedRequire = resolver.resolveRequire(
             [L, &cacheKey = cacheManager.cacheKey](const RequireResolver::ModuleStatus status)
             {
-                lua_getfield(L, LUA_REGISTRYINDEX, "_MODULES");
+lua_getfield(L, LUA_REGISTRYINDEX, "_MODULES");
                 if (status == RequireResolver::ModuleStatus::Cached)
                     lua_getfield(L, -1, cacheKey.c_str());
             }
@@ -224,7 +228,7 @@ static int lua_callgrind(lua_State* L)
 }
 #endif
 
-static auto loadScript(lua_State* L, const fs::path& path) -> std::expected<decltype(L), std::string> {
+static auto load_script(lua_State* L, const fs::path& path) -> std::expected<decltype(L), std::string> {
     auto mainThread = lua_mainthread(L);
     auto scriptThread = lua_newthread(mainThread);
     std::ifstream file{path};
@@ -243,11 +247,21 @@ static auto loadScript(lua_State* L, const fs::path& path) -> std::expected<decl
     }
     return scriptThread;
 }
+static auto user_atom(const char* str, size_t len) -> int16_t {
+    std::string_view namecall{str, len};
+    constexpr std::array info = compenum::to_array<Namecall_Atom>();
+    auto found = rngs::find_if(info, [&namecall](decltype(info[0])& e) {
+        return e.name == namecall;
+    });
+    if (found == rngs::end(info)) return -1;
+    return static_cast<int16_t>(found->value);
+}
 
-auto game::init_luau() -> void {
+auto Game_State::init_luau() -> void {
     raii.luau.reset(luaL_newstate());
-    auto L = lua();
-    lua_setlightuserdataname(L, static_cast<int>(light_tag::game), "game");
+    auto L = lua_state();
+    lua_callbacks(L)->useratom = user_atom;
+    lua_setlightuserdataname(L, static_cast<int>(Light_Type_Tag::game_state), "Game_State");
     if (codegen) Luau::CodeGen::create(L);
     luaL_openlibs(L);
     static const luaL_Reg funcs[] = {
@@ -263,7 +277,9 @@ auto game::init_luau() -> void {
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, NULL, funcs);
     lua_pop(L, 1);
-    lua_pushlightuserdatatagged(L, this, static_cast<int>(light_tag::game));
+    lua_pushlightuserdatatagged(L, this, static_cast<int>(Light_Type_Tag::game_state));
+    Game_State_Meta::push_metatable(L);
+    lua_setmetatable(L, -2);
     lua_setglobal(L, "game");
 
     luaL_sandbox(L);
