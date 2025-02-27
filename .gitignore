@@ -3,5 +3,6 @@ cmake/
 lsp/
 .nvim.lua
 .luaurc
+imgui.ini
 
 lou.log

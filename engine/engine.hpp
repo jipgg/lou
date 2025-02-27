@@ -28,22 +28,14 @@ enum class Tag {
     Texture,
     Window,
     Renderer,
+    _end
 };
 template <Tag Tag> struct Mapped_Type;
 
 #define Map_Type_To_Tag(TAG, TYPE)\
 template <> struct Mapped_Type<Tag::TAG> {using Type = TYPE;}
 
-#define Declare_Meta_Here \
-struct Meta {\
-    static auto index(lua_State* L) -> int;\
-    static auto newindex(lua_State* L) -> int;\
-    static auto namecall(lua_State* L) -> int;\
-    static auto init(lua_State* L) -> void;\
-}
-
 struct Console {
-    Declare_Meta_Here;
     auto render() -> void;
     enum class Severity {
         Comment, Warning, Error
@@ -52,7 +44,7 @@ struct Console {
         Severity severity;
         std::string message;
     };
-    std::vector<Entry> entries;
+    std::vector<Entry> entries{};
     bool open{true};
     bool is_dirty{false};
     template <Severity Severity>
@@ -69,6 +61,8 @@ struct Console {
     auto error(const std::string& message) -> void {
         return basic_print<Severity::Error>(message);
     }
+    auto push_as_light_userdata(lua_State* L) -> void;
+    auto push_metatable(lua_State* L) -> void;
 };
 struct Logger {
     std::ofstream file{"lou.log", std::ios::app};
@@ -83,7 +77,6 @@ inline Logger logger{};
 
 
 struct Engine {
-    Declare_Meta_Here;
     using Clock_t = std::chrono::steady_clock;
     using Time_Point_t = std::chrono::time_point<Clock_t>;
     struct {
@@ -126,6 +119,8 @@ struct Engine {
     auto renderer() -> SDL_Renderer* {return raii.renderer.get();}
     auto window() -> SDL_Window* {return raii.window.get();}
     auto text_engine() -> TTF_TextEngine* {return raii.text_engine.get();}
+    auto push_as_light_userdata(lua_State* L) -> void;
+    auto push_metatable(lua_State* L) -> void;
 };
 
 auto luaopen_rect(lua_State* L) -> void;
@@ -139,46 +134,46 @@ Map_Type_To_Tag(Engine, Engine);
 Map_Type_To_Tag(Console, Console);
 
 
-template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
-constexpr auto new_type(lua_State* L) -> Ty* {
-    auto p = static_cast<Ty*>(
-        lua_newuserdatatagged(L, sizeof(Ty), static_cast<int>(Tag))
-    );
-    new (p) Ty{};
-    //std::memset(p, 0, sizeof(Ty));
-    luaL_getmetatable(L, typeid(Ty).name());
-    lua_setmetatable(L, -2);
-    return p;
-}
-template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
-constexpr auto push_type(lua_State* L, Ty* ptr) -> void {
-    logger.log("pushed {}, ptr {}", typeid(Ty).name(), (uintptr_t)ptr);
-    lua_pushlightuserdatatagged(L, ptr, static_cast<int>(Tag));
-    luaL_getmetatable(L, typeid(Ty).name());
-    lua_setmetatable(L, -2);
-}
-template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
-constexpr auto is_type(lua_State* L, int idx) -> bool {
-    if (lua_islightuserdata(L, idx)) {
-        return lua_lightuserdatatag(L, idx) == int(Tag);
-    } else {
-        return lua_userdatatag(L, idx) == int(Tag);
-    }
-}
-
-template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
-constexpr auto to_type(lua_State* L, int idx) -> Ty* {
-    if (lua_islightuserdata(L, idx)) {
-        return static_cast<Ty*>(lua_tolightuserdatatagged(L, idx, int(Tag)));
-    } else {
-        return static_cast<Ty*>(lua_touserdatatagged(L, idx, int(Tag)));
-    }
-}
-
-template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
-constexpr auto check_type(lua_State* L, int idx) -> Ty* {
-    if (not is_type<Tag>(L, idx)) return nullptr;
-    return to_type<Tag>(L, idx);
-}
+/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
+/*constexpr auto new_type(lua_State* L) -> Ty* {*/
+/*    auto p = static_cast<Ty*>(*/
+/*        lua_newuserdatatagged(L, sizeof(Ty), static_cast<int>(Tag))*/
+/*    );*/
+/*    new (p) Ty{};*/
+/*    //std::memset(p, 0, sizeof(Ty));*/
+/*    luaL_getmetatable(L, typeid(Ty).name());*/
+/*    lua_setmetatable(L, -2);*/
+/*    return p;*/
+/*}*/
+/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
+/*constexpr auto push_type(lua_State* L, Ty* ptr) -> void {*/
+/*    logger.log("pushed {}, ptr {}", typeid(Ty).name(), (uintptr_t)ptr);*/
+/*    lua_pushlightuserdatatagged(L, ptr, static_cast<int>(Tag));*/
+/*    luaL_getmetatable(L, typeid(Ty).name());*/
+/*    lua_setmetatable(L, -2);*/
+/*}*/
+/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
+/*constexpr auto is_type(lua_State* L, int idx) -> bool {*/
+/*    if (lua_islightuserdata(L, idx)) {*/
+/*        return lua_lightuserdatatag(L, idx) == int(Tag);*/
+/*    } else {*/
+/*        return lua_userdatatag(L, idx) == int(Tag);*/
+/*    }*/
+/*}*/
+/**/
+/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
+/*constexpr auto to_type(lua_State* L, int idx) -> Ty* {*/
+/*    if (lua_islightuserdata(L, idx)) {*/
+/*        return static_cast<Ty*>(lua_tolightuserdatatagged(L, idx, int(Tag)));*/
+/*    } else {*/
+/*        return static_cast<Ty*>(lua_touserdatatagged(L, idx, int(Tag)));*/
+/*    }*/
+/*}*/
+/**/
+/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
+/*constexpr auto check_type(lua_State* L, int idx) -> Ty* {*/
+/*    if (not is_type<Tag>(L, idx)) return nullptr;*/
+/*    return to_type<Tag>(L, idx);*/
+/*}*/
 #undef Declare_Meta_Here
 #undef Map_Type_To_Tag

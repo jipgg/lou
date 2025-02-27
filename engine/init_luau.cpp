@@ -261,11 +261,7 @@ static auto user_atom(const char* str, size_t len) -> int16_t {
 auto Engine::init_luau() -> void {
     raii.luau.reset(luaL_newstate());
     auto L = lua_state();
-    Engine::Meta::init(L);
-    Console::Meta::init(L);
     lua_callbacks(L)->useratom = user_atom;
-    lua_setlightuserdataname(L, static_cast<int>(Tag::Engine), "Engine");
-    lua_setlightuserdataname(L, static_cast<int>(Tag::Console), "Console");
     if (codegen) Luau::CodeGen::create(L);
     luaL_openlibs(L);
     static const luaL_Reg funcs[] = {
@@ -281,7 +277,7 @@ auto Engine::init_luau() -> void {
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, NULL, funcs);
     lua_pop(L, 1);
-    push_type<Tag::Engine>(L, this);
+    Engine::push_as_light_userdata(L);
     lua_setglobal(L, "lou");
 
     luaL_sandbox(L);

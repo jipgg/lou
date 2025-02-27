@@ -9,3 +9,5 @@ con:warn(typeof(lou))
 con:warn(typeof(con))
 
 con:warn("yoo")
+
+lou:get_console()

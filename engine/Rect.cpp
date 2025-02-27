@@ -13,7 +13,6 @@ auto lua_rectCtor(lua_State* L) -> int {
         .w = luaL_optinteger(L, 3, 0),
         .h = luaL_optinteger(L, 4, 0),
     };
-    *new_type<Tag::Rect>(L) = rect;
     return 1;
 }
 
