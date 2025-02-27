@@ -5,8 +5,8 @@
 static auto err_invalid_method(lua_State* L, int atom, Tag tag) {
             util::error(L,
                 "invalid method for {} -> {}",
-                comp::enum_item<Tag>(int(tag)).name,
-                comp::enum_item<Namecall_Atom>(atom).name
+                compile_time::enum_item<Tag>(tag).name,
+                compile_time::enum_item<Namecall_Atom>(atom).name
             );
 }
 
@@ -80,7 +80,7 @@ static auto engine_namecall(lua_State *L) -> int {
     auto& engine = *(Engine*)lua_tolightuserdatatagged(L, 1, int(Tag::Engine));
     int atom{};
     lua_namecallatom(L, &atom);
-    logger.log("atom is {}, {}", atom, comp::enum_item<Namecall_Atom>(atom).name);
+    logger.log("atom is {}, {}", atom, compile_time::enum_item<Namecall_Atom>(atom).name);
     switch (static_cast<Namecall_Atom>(atom)) {
         case Namecall_Atom::get_console:
             engine.console.push_as_light_userdata(L);

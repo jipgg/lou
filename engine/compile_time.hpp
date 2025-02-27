@@ -6,32 +6,37 @@
 #include <array>
 #include <cassert>
 #include <ranges>
-namespace comp {
+namespace compile_time {
 template<class Val, Val v>
 struct Value {
     static const constexpr auto value = v;
     constexpr operator Val() const {return v;}
 };
-template <class Func, std::size_t... indices>
-constexpr void inline_for(Func fn, std::index_sequence<indices...>) {
-  (fn(Value<std::size_t, indices>{}), ...);
+template <class Func, std::size_t... Indices>
+constexpr void unroll_for(Func fn, std::index_sequence<Indices...>) {
+  (fn(Value<std::size_t, Indices>{}), ...);
 }
-template <std::size_t count, typename Func>
-constexpr void inline_for(Func fn) {
-  inline_for(fn, std::make_index_sequence<count>());
+template <std::size_t Count, typename Func>
+constexpr void unroll_for(Func fn) {
+  unroll_for(fn, std::make_index_sequence<Count>());
 }
-#define compenum_SENTINEL _end
-template <class T>
-concept Enum = std::is_enum_v<T>;
-template <Enum Type>
+#define COMPILE_TIME_ENUM_SENTINEL _end
+template <class Ty>
+concept Sentinel_Enum = requires {
+    std::is_enum_v<Ty>;
+    Ty::COMPILE_TIME_ENUM_SENTINEL;
+};
+template <class From, class To>
+concept Static_Castable_To = requires {
+    static_cast<To>(From{});
+};
+template <Sentinel_Enum Type>
 consteval std::size_t count() {
-    return static_cast<std::size_t>(Type::compenum_SENTINEL);
+    return static_cast<std::size_t>(Type::COMPILE_TIME_ENUM_SENTINEL);
 }
-#define compenum_SENTINEL_ENUM(Enum_type, ...) enum class Enum_type {__VA_ARGS__, compenum_SENTINEL}
-
-template <Enum Type, Type last_item>
+template <Sentinel_Enum Type, Type Last_Item>
 consteval std::size_t count() {
-    return static_cast<std::size_t>(last_item) + 1;
+    return static_cast<std::size_t>(Last_Item) + 1;
 }
 struct Enum_Info {
     std::string_view type;
@@ -39,7 +44,7 @@ struct Enum_Info {
     std::string_view raw;
     int value;
 };
-template <Enum Type>
+template <Sentinel_Enum Type>
 struct Enum_Item {
     std::string_view name;
     int value;
@@ -48,7 +53,7 @@ struct Enum_Item {
 };
 namespace detail {
 #if defined (_MSC_VER)//msvc compiler
-template <Enum Ty, Ty Val>
+template <Sentinel_Enum Ty, Ty Val>
 consteval Enum_Info enum_info() {
     const std::string_view raw{std::source_location::current().function_name()};
     const std::string enum_t_keyw{"<enum "};
@@ -70,7 +75,7 @@ consteval Enum_Info enum_info() {
     };
 }
 #elif defined(__clang__) || defined(__GNUC__)
-template <Enum Ty, Ty Val>
+template <Sentinel_Enum Ty, Ty Val>
 consteval Enum_info enum_info() {
     using sv = std::string_view;
     const sv raw{std::source_location::current().function_name()};
@@ -94,11 +99,11 @@ consteval Enum_info enum_info() {
 static_assert(false, "platform not supported")
 #endif
 }
-template <auto Val, Enum Ty = decltype(Val)>
+template <auto Val, Sentinel_Enum Ty = decltype(Val)>
 consteval Enum_Info enum_info() {
     return detail::enum_info<Ty, static_cast<Ty>(Val)>();
 }
-template <auto Val, Enum Ty = decltype(Val)>
+template <auto Val, Sentinel_Enum Ty = decltype(Val)>
 constexpr Enum_Item<Ty> enum_item() {
     constexpr auto info = enum_info<Ty, Val>();
     return Enum_Item<Ty>{
@@ -106,26 +111,25 @@ constexpr Enum_Item<Ty> enum_item() {
         .value = static_cast<int>(Val),
     };
 }
-template <Enum Ty, int Count = count<Ty>()> 
+template <Sentinel_Enum Ty, int Count = count<Ty>()> 
 consteval std::array<Enum_Info, Count> to_array() {
     std::array<Enum_Info, Count> arr{};
-    inline_for<Count>([&arr](auto i) {
+    unroll_for<Count>([&arr](auto i) {
         arr[i] = enum_info<static_cast<Ty>(i.value)>();
     });
     return arr;
 }
-template <Enum Type, int size = count<Type>()>
+template <Sentinel_Enum Type, int Size = count<Type>()>
 constexpr Enum_Item<Type> enum_item(std::string_view name) {
-    constexpr auto array = to_array<Type, size>();
+    constexpr auto array = to_array<Type, Size>();
     auto found_it = std::ranges::find_if(array, [&name](const Enum_Info& e) {return e.name == name;});
     assert(found_it != std::ranges::end(array));
     return {.name = found_it->name, .value = found_it->value};
 }
-template <Enum Type, int size = count<Type>()>
-constexpr Enum_Item<Type> enum_item(int value) {
-    constexpr auto array = to_array<Type, size>();
-    auto found_it = std::ranges::find_if(array, [&value](const Enum_Info& e) {return e.value == value;});
-    assert(found_it != std::ranges::end(array));
-    return {.name = found_it->name, .value = found_it->value};
+template <Sentinel_Enum Type, int Size = count<Type>()>
+constexpr Enum_Item<Type> enum_item(auto value) {
+    constexpr auto array = to_array<Type, Size>();
+    const auto& info = array.at(static_cast<size_t>(value)); 
+    return {.name = info.name, .value = info.value};
 }
 }

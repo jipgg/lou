@@ -10,7 +10,7 @@
 #include <string>
 #include <lualib.h>
 #include <fstream>
-#include "comp.hpp"
+#include "compile_time.hpp"
 #include "util.hpp"
 #include <chrono>
 #include <sstream>
@@ -28,7 +28,7 @@ enum class Tag {
     Texture,
     Window,
     Renderer,
-    _end
+    COMPILE_TIME_ENUM_SENTINEL
 };
 template <Tag Tag> struct Mapped_Type;
 
@@ -175,5 +175,4 @@ Map_Type_To_Tag(Console, Console);
 /*    if (not is_type<Tag>(L, idx)) return nullptr;*/
 /*    return to_type<Tag>(L, idx);*/
 /*}*/
-#undef Declare_Meta_Here
 #undef Map_Type_To_Tag

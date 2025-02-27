@@ -1,5 +1,5 @@
 #pragma once
-#include "comp.hpp"
+#include "compile_time.hpp"
 
 enum class Namecall_Atom: int16_t {
     print,
@@ -11,5 +11,5 @@ enum class Namecall_Atom: int16_t {
     get_renderer,
     get_callbacks,
     is_key_down,
-    compenum_SENTINEL
+    COMPILE_TIME_ENUM_SENTINEL
 };

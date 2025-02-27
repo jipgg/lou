@@ -30,7 +30,7 @@ public:
             lua_pop(state_, 1);
         }
     }
-    Lua_Ref(Lua_Ref&& other) {
+    Lua_Ref(Lua_Ref&& other) noexcept {
         state_ = other.state_;
         ref_ = other.ref_;
         other.state_ = nullptr;
@@ -59,6 +59,10 @@ public:
         return state_;
     }
     void push(lua_State* L) {
+        if (not state_) {
+            lua_pushnil(L);
+            return;
+        }
         lua_getref(L, ref_);
     }
     void release() {
