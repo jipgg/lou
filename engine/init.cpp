@@ -31,14 +31,14 @@ void Engine::init(Engine::Init_Info e) {
     ImGui_ImplSDLRenderer3_Init(renderer());
     auto& io = ImGui::GetIO();
     auto fonti = io.Fonts->AddFontFromFileTTF("resources/main.ttf", 20);
-    ImGui::GetStyle().ScaleAllSizes(2);
+    //ImGui::GetStyle().ScaleAllSizes(5);
     raii.text_engine.reset(TTF_CreateRendererTextEngine(renderer()));
     auto font = TTF_OpenFont("resources/main.ttf", 60);
     init_luau();
     fs::path path{"game/init.luau"};
     std::ifstream file{path};
     if (!file.is_open()) {
-        print("failed to open '{}'", path.string());
+        console.error(std::format("failed to open '{}'", path.string()));
     }
     std::string line, contents;
     while (std::getline(file, line)) contents.append(line + '\n');
@@ -46,6 +46,6 @@ void Engine::init(Engine::Init_Info e) {
     auto chunkname = std::format("=script:{}:", fs::relative(path).string());
     auto status = luau_load(lua_state(), chunkname.c_str(), bytecode.data(), bytecode.size(), 0);
     if (lua_pcall(lua_state(), 0, 0, 0) != LUA_OK) {
-        console.comment(lua_tostring(lua_state(), -1));
+        console.error(lua_tostring(lua_state(), -1));
     }
 }

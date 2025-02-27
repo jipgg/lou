@@ -4,5 +4,4 @@ lsp/
 .nvim.lua
 .luaurc
 
-log.txt
-errlog.txt
+lou.log

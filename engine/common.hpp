@@ -1,5 +1,17 @@
 #pragma once
 #include <lualib.h>
+#include <chrono>
+#include <source_location>
+#include <format>
+#include <filesystem>
+
+inline auto stamp_debug_info(const std::source_location& location = std::source_location::current()) -> std::string {
+    using namespace std::chrono;
+    using namespace std::filesystem;
+    using Duration = duration<long long, std::centi>;
+    auto now = time_point_cast<Duration>(system_clock::now());
+    return std::format("[{:%T}]({}:{}): ", now, path(location.file_name()).filename().string(), location.line());
+}
 
 class Lua_Ref {
     int ref_;

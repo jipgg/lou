@@ -24,7 +24,7 @@ auto main(int argc, char** argv) -> int {
         .title{"test"},
         .width = 1920,
         .height = 1080,
-        .flags = SDL_WINDOW_MAXIMIZED | SDL_WINDOW_RESIZABLE,
+        .flags = SDL_WINDOW_RESIZABLE,
     });
     while(state.running) {
         state.update();

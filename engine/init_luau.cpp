@@ -249,6 +249,7 @@ static auto load_script(lua_State* L, const fs::path& path) -> std::expected<dec
 }
 static auto user_atom(const char* str, size_t len) -> int16_t {
     std::string_view namecall{str, len};
+    logger.log("new atom entry {}", namecall);
     constexpr std::array info = comp::to_array<Namecall_Atom>();
     auto found = rngs::find_if(info, [&namecall](decltype(info[0])& e) {
         return e.name == namecall;

@@ -1,12 +1,11 @@
 print('Hello')
-local console = lou:get_console()
 
--- lou.console:print("YOOOOOOOOOOOO")
--- lou.console:warn("YOOOOOOOOOOOOOOO")
--- lou.console:error("YOOOOOOOOOOOOOOOO")
 
-console:warn("YOOOOOOO")
+--console:warn("yoo")
 
-local e = lou:get_console()
 
-e:warn("eeee")
+local con = lou:get_console()
+con:warn(typeof(lou))
+con:warn(typeof(con))
+
+con:warn("yoo")

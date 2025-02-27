@@ -19,6 +19,7 @@
 #include "common.hpp"
 
 enum class Tag {
+    Any,
     Engine,
     Console,
     Rect,
@@ -56,7 +57,7 @@ struct Console {
     bool is_dirty{false};
     template <Severity Severity>
     auto basic_print(const std::string& message) -> void {
-        entries.emplace_back(Severity, std::string(message));
+        entries.emplace_back(Severity, stamp_debug_info() + std::string(message));
         is_dirty = true;
     }
     auto comment(const std::string& message) -> void {
@@ -69,6 +70,16 @@ struct Console {
         return basic_print<Severity::Error>(message);
     }
 };
+struct Logger {
+    std::ofstream file{"lou.log", std::ios::app};
+    template <class ...Ts>
+    auto log(const std::format_string<Ts...>& fmt, Ts&&...args) -> void {
+        file << stamp_debug_info();
+        file << std::format(fmt, std::forward<Ts>(args)...) << "\n";
+        file.flush();
+    }
+};
+inline Logger logger{};
 
 
 struct Engine {
@@ -133,15 +144,17 @@ constexpr auto new_type(lua_State* L) -> Ty* {
     auto p = static_cast<Ty*>(
         lua_newuserdatatagged(L, sizeof(Ty), static_cast<int>(Tag))
     );
-    std::memset(p, 0, sizeof(Ty));
-    luaL_getmetatable(L, typeid(std::decay_t<Ty>).name());
+    new (p) Ty{};
+    //std::memset(p, 0, sizeof(Ty));
+    luaL_getmetatable(L, typeid(Ty).name());
     lua_setmetatable(L, -2);
     return p;
 }
 template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
 constexpr auto push_type(lua_State* L, Ty* ptr) -> void {
+    logger.log("pushed {}, ptr {}", typeid(Ty).name(), (uintptr_t)ptr);
     lua_pushlightuserdatatagged(L, ptr, static_cast<int>(Tag));
-    luaL_getmetatable(L, typeid(std::decay_t<Ty>).name());
+    luaL_getmetatable(L, typeid(Ty).name());
     lua_setmetatable(L, -2);
 }
 template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>

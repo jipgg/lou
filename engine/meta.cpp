@@ -9,9 +9,10 @@ auto Console::Meta::newindex(lua_State *L) -> int {
     return 0;
 }
 auto Console::Meta::namecall(lua_State *L) -> int {
-    auto console = check_type<Tag::Console>(L, 1);
+    logger.log("userdatatag is {} in console", lua_lightuserdatatag(L, 1));
+    auto console = to_type<Tag::Console>(L, 1);
     if (not console) {
-        return 0;
+        logger.log("WTF");
     }
     int atom{};
     lua_namecallatom(L, &atom);
@@ -62,14 +63,18 @@ auto Engine::Meta::namecall(lua_State *L) -> int {
     auto state = to_type<Tag::Engine>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
+    logger.log("atom is {}, {}", atom, comp::enum_item<Namecall_Atom>(atom).name);
     switch (static_cast<Namecall_Atom>(atom)) {
         case Namecall_Atom::get_console:
+            logger.log("namecalled and pushing console, ptr {}", (uintptr_t)&state->console);
             push_type<Tag::Console>(L, &state->console);
+            logger.log("type of -1 is {}", lua_typename(L, lua_type(L, -1)));
         return 1;
         default:
             state->console.error(std::format("invalid method for {}", typeid(Engine).name()));
         break;
     }
+    state->console.error(std::format("invalid method for {}", typeid(Engine).name()));
     return 0;
 
 }
@@ -81,5 +86,7 @@ void Engine::Meta::init(lua_State *L) {
         {nullptr, nullptr}
     };
     luaL_register(L, nullptr, meta);
+    lua_pushstring(L, "Engine");
+    lua_setfield(L, -2, "__type");
     lua_pop(L, 1);
 }

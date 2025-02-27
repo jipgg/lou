@@ -121,4 +121,11 @@ constexpr Enum_Item<Type> enum_item(std::string_view name) {
     assert(found_it != std::ranges::end(array));
     return {.name = found_it->name, .value = found_it->value};
 }
+template <Enum Type, int size = count<Type>()>
+constexpr Enum_Item<Type> enum_item(int value) {
+    constexpr auto array = to_array<Type, size>();
+    auto found_it = std::ranges::find_if(array, [&value](const Enum_Info& e) {return e.value == value;});
+    assert(found_it != std::ranges::end(array));
+    return {.name = found_it->name, .value = found_it->value};
+}
 }
