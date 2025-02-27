@@ -37,7 +37,7 @@ void Engine::update() {
                     cb.push(L);
                     lua_pushstring(L, SDL_GetKeyName(e.key.key));
                     if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
-                        print("{}", lua_tostring(L, -1));
+                        console.error(lua_tostring(L, -1));
                         lua_pop(L, 1);
                     }
                 }
@@ -57,7 +57,7 @@ void Engine::update() {
         callbacks.update.push(L);
         util::push(L, delta_seconds);
         if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
-            print("{}", lua_tostring(L, -1));
+            console.error(lua_tostring(L, -1));
             lua_pop(L, 1);
         }
     }

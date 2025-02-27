@@ -1,14 +1,12 @@
 print('Hello')
+local console = lou:get_console()
 
-game:print("YO ")
+-- lou.console:print("YOOOOOOOOOOOO")
+-- lou.console:warn("YOOOOOOOOOOOOOOO")
+-- lou.console:error("YOOOOOOOOOOOOOOOO")
 
+console:warn("YOOOOOOO")
 
-function game.key_down(key: Key_Name)
-    if key == 'M' then
-        game:print("yoo m is pressed")
-    end
-end
+local e = lou:get_console()
 
-function game.key_up(key)
-    game:print(`key up {key}`)
-end
+e:warn("eeee")

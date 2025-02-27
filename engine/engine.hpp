@@ -16,61 +16,11 @@
 #include <sstream>
 #include <print>
 #include <functional>
+#include "common.hpp"
 
-class Lua_Ref {
-    int ref_;
-    lua_State* state_;
-public:
-    Lua_Ref(): ref_(-1), state_(nullptr) {}
-    Lua_Ref(lua_State* L, int idx):
-        ref_(lua_ref(L, idx)),
-        state_(lua_mainthread(L)) {
-    }
-    Lua_Ref(const Lua_Ref& other) {
-        state_ = other.state_;
-        if (state_) {
-            push(state_);
-            ref_ = lua_ref(state_, -1);
-            lua_pop(state_, 1);
-        }
-    }
-    Lua_Ref(Lua_Ref&& other) {
-        state_ = other.state_;
-        ref_ = other.ref_;
-        other.state_ = nullptr;
-    }
-    Lua_Ref& operator=(const Lua_Ref& other) {
-        state_ = other.state_;
-        if (state_) {
-            push(state_);
-            ref_ = lua_ref(state_, -1);
-            lua_pop(state_, 1);
-        }
-        return *this;
-    }
-    Lua_Ref& operator=(Lua_Ref&& other) noexcept {
-        state_ = other.state_;
-        ref_ = other.ref_;
-        other.state_ = nullptr;
-        return *this;
-    }
-    ~Lua_Ref() {
-        if (state_) {
-            lua_unref(state_, ref_);
-        }
-    }
-    operator bool() const {
-        return state_;
-    }
-    void push(lua_State* L) {
-        lua_getref(L, ref_);
-    }
-    void release() {
-        state_ = nullptr;
-    }
-};
 enum class Tag {
     Engine,
+    Console,
     Rect,
     Point,
     Color,
@@ -78,28 +28,57 @@ enum class Tag {
     Window,
     Renderer,
 };
+template <Tag Tag> struct Mapped_Type;
 
-struct Engine_Meta {
-    static auto index(lua_State* L) -> int;
-    static auto newindex(lua_State* L) -> int;
-    static auto namecall(lua_State* L) -> int;
-    static void push_metatable(lua_State* L);
-};
+#define Map_Type_To_Tag(TAG, TYPE)\
+template <> struct Mapped_Type<Tag::TAG> {using Type = TYPE;}
 
-struct Window_Meta {
-    static auto index(lua_State* L) -> int;
-    static auto newindex(lua_State* L) -> int;
-    static auto namecall(lua_State* L) -> int;
-    static auto getmetatable(lua_State* L) -> void;
+#define Declare_Meta_Here \
+struct Meta {\
+    static auto index(lua_State* L) -> int;\
+    static auto newindex(lua_State* L) -> int;\
+    static auto namecall(lua_State* L) -> int;\
+    static auto init(lua_State* L) -> void;\
+}
+
+struct Console {
+    Declare_Meta_Here;
+    auto render() -> void;
+    enum class Severity {
+        Comment, Warning, Error
+    };
+    struct Entry {
+        Severity severity;
+        std::string message;
+    };
+    std::vector<Entry> entries;
+    bool open{true};
+    bool is_dirty{false};
+    template <Severity Severity>
+    auto basic_print(const std::string& message) -> void {
+        entries.emplace_back(Severity, std::string(message));
+        is_dirty = true;
+    }
+    auto comment(const std::string& message) -> void {
+        return basic_print<Severity::Comment>(message);
+    }
+    auto warn(const std::string& message) -> void {
+        return basic_print<Severity::Warning>(message);
+    }
+    auto error(const std::string& message) -> void {
+        return basic_print<Severity::Error>(message);
+    }
 };
 
 
 struct Engine {
+    Declare_Meta_Here;
     using Clock_t = std::chrono::steady_clock;
     using Time_Point_t = std::chrono::time_point<Clock_t>;
     struct {
         Time_Point_t last_frame_start{Clock_t::now()};
         SDL_Event event;
+        Lua_Ref console;
     } cache;
     struct {
         template <class Ty>
@@ -120,11 +99,7 @@ struct Engine {
         Lua_Ref mouse_motion{};
         Lua_Ref mouse_scroll{};
     } callbacks;
-    struct {
-        bool open{true};
-        std::stringstream out;
-        std::stringstream err;
-    } console;
+    Console console;
     bool running{true};
     struct Init_Info {
         std::string title{"engine"};
@@ -136,15 +111,6 @@ struct Engine {
     void init_luau();
     void update();
     void draw();
-    template <class ...Ty_Args>
-    void print(const std::format_string<Ty_Args...>& fmt, Ty_Args&&...args) {
-        console.out << std::format("[{}] ", std::chrono::system_clock::now());
-        console.out <<  std::format(fmt, std::forward<Ty_Args>(args)...);
-        console.out << '\n';
-    } 
-    void print(std::string_view str) {
-        console.out << std::format("[{}] {}\n", std::chrono::system_clock::now(), str);
-    }
     auto lua_state() -> lua_State* {return raii.luau.get();}
     auto renderer() -> SDL_Renderer* {return raii.renderer.get();}
     auto window() -> SDL_Window* {return raii.window.get();}
@@ -155,33 +121,31 @@ auto luaopen_rect(lua_State* L) -> void;
 auto initRect(lua_State* L) -> void;
 auto rectCtor(lua_State* L) -> int;
 
-template <Tag Tag> struct Mapped_Type;
-#define Map_Type_To_Tag(TAG, TYPE)\
-template <> struct Mapped_Type<Tag::TAG> {using Type = TYPE;}
-
 Map_Type_To_Tag(Point, SDL_Point);
 Map_Type_To_Tag(Rect, SDL_Rect);
 Map_Type_To_Tag(Color, SDL_Color);
 Map_Type_To_Tag(Engine, Engine);
+Map_Type_To_Tag(Console, Console);
 
-#undef Map_Type_To_Tag
 
 template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
 constexpr auto new_type(lua_State* L) -> Ty* {
     auto p = static_cast<Ty*>(
-        lua_newuserdatataggedwithmetatable(L, sizeof(Ty), static_cast<int>(Tag))
+        lua_newuserdatatagged(L, sizeof(Ty), static_cast<int>(Tag))
     );
     std::memset(p, 0, sizeof(Ty));
+    luaL_getmetatable(L, typeid(std::decay_t<Ty>).name());
+    lua_setmetatable(L, -2);
     return p;
 }
 template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
 constexpr auto push_type(lua_State* L, Ty* ptr) -> void {
     lua_pushlightuserdatatagged(L, ptr, static_cast<int>(Tag));
-    lua_getuserdatametatable(L, static_cast<int>(Tag));
+    luaL_getmetatable(L, typeid(std::decay_t<Ty>).name());
     lua_setmetatable(L, -2);
 }
 template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
-constexpr auto is_type(lua_State* L, int idx) -> Ty* {
+constexpr auto is_type(lua_State* L, int idx) -> bool {
     if (lua_islightuserdata(L, idx)) {
         return lua_lightuserdatatag(L, idx) == int(Tag);
     } else {
@@ -200,6 +164,8 @@ constexpr auto to_type(lua_State* L, int idx) -> Ty* {
 
 template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>
 constexpr auto check_type(lua_State* L, int idx) -> Ty* {
-    constexpr auto info = comp::enum_info<Tag, Tag>();
-    if (not is_type<Tag>()) util::type_error(L, info.name);
+    if (not is_type<Tag>(L, idx)) return nullptr;
+    return to_type<Tag>(L, idx);
 }
+#undef Declare_Meta_Here
+#undef Map_Type_To_Tag

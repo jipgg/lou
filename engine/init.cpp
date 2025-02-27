@@ -46,6 +46,6 @@ void Engine::init(Engine::Init_Info e) {
     auto chunkname = std::format("=script:{}:", fs::relative(path).string());
     auto status = luau_load(lua_state(), chunkname.c_str(), bytecode.data(), bytecode.size(), 0);
     if (lua_pcall(lua_state(), 0, 0, 0) != LUA_OK) {
-        print(lua_tostring(lua_state(), -1));
+        console.comment(lua_tostring(lua_state(), -1));
     }
 }
