@@ -1,16 +1,13 @@
-#include "engine.hpp"
+// most of this source code is yanked from the Repl source in luau
+#include "Lou.hpp"
 #include <Luau/Compiler.h>
 #include <Luau/CodeGen.h>
 #include <Luau/Require.h>
 #include <ranges>
 #include <algorithm>
 #include <fstream>
-#include "lua_util.hpp"
 #include <print>
 #include <iostream>
-#include "Namecall_Atom.hpp"
-#include "Tag.hpp"
-#include "structs.hpp"
 namespace fs = std::filesystem;
 namespace rngs = std::ranges;
 
@@ -270,7 +267,7 @@ static auto init_meta(lua_State* L) -> void {
     lua_pop(L, 1);
 }
 
-auto Engine::init_luau() -> void {
+auto Lou_State::init_luau() -> void {
     raii.luau.reset(luaL_newstate());
     auto L = lua_state();
     lua_callbacks(L)->useratom = user_atom;
@@ -285,21 +282,18 @@ auto Engine::init_luau() -> void {
 #endif
         {NULL, NULL},
     };
-    init_meta<Console>(L);
-    init_meta<Engine>(L);
+    init_meta<Lou_Console>(L);
+    init_meta<Lou_State>(L);
     init_meta<Rect>(L);
     init_meta<Color>(L);
     init_meta<Point>(L);
-    init_meta<Keyboard>(L);
-    init_meta<Mouse>(L);
-    /*Console::push_metatable(L);*/
-    /*Engine::push_metatable(L);*/
-    /*lua_pop(L, 2);*/
+    init_meta<Lou_Keyboard>(L);
+    init_meta<Lou_Mouse>(L);
 
     lua_pushvalue(L, LUA_GLOBALSINDEX);
-    luaL_register(L, NULL, funcs);
+    luaL_register(L, nullptr, funcs);
     lua_pop(L, 1);
-    push_reference<Tag::Engine>(L, this);
+    push_reference<Tag::Lou_State>(L, this);
     lua_setglobal(L, "lou");
     Rect::push_constructor(L);
     lua_setglobal(L, "Rect");
@@ -308,11 +302,11 @@ auto Engine::init_luau() -> void {
     Point::push_constructor(L);
     lua_setglobal(L, "Point");
     auto print = [](lua_State* L) -> int {
-        auto& console = to_object<Tag::Console>(L, lua_upvalueindex(1));
+        auto& console = to_object<Tag::Lou_Console>(L, lua_upvalueindex(1));
         console.comment(lua::tuple_tostring(L));
         return 0;
     };
-    push_reference<Tag::Console>(L, console);
+    push_reference<Tag::Lou_Console>(L, console);
     lua_pushcclosure(L, print, "print", 1);
     lua_setglobal(L, "print");
 

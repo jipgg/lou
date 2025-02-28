@@ -1,8 +1,8 @@
-#include "engine.hpp"
+#include "Lou.hpp"
 
 constexpr SDL_Color white{0xff, 0xff ,0xff, 0xff};
 
-auto Console::render() -> void {
+auto Lou_Console::render() -> void {
     auto& io = ImGui::GetIO();
     if (ImGui::IsKeyPressed(ImGuiKey_F9)) {
         open = not open;
@@ -39,7 +39,7 @@ auto Console::render() -> void {
         ImGui::End();
     }
 }
-auto Engine::draw() -> void {
+void Lou_State::draw() {
     auto render = renderer();
     ImGui_ImplSDL3_NewFrame();
     ImGui_ImplSDLRenderer3_NewFrame();

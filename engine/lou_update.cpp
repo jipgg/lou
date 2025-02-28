@@ -3,7 +3,7 @@
 #include <SDL3/SDL_gpu.h>
 #include <functional>
 #include <expected>
-#include "engine.hpp"
+#include "Lou.hpp"
 #include <format>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlrenderer3.h>
@@ -13,7 +13,7 @@
 #include <imgui.h>
 #include <Luau/Require.h>
 #include <Luau/Compiler.h>
-#include "lua_util.hpp"
+#include "common.hpp"
 namespace fs = std::filesystem;
 
 static auto button_name(lua_State* L, uint8_t button_index) -> std::string {
@@ -23,7 +23,7 @@ static auto button_name(lua_State* L, uint8_t button_index) -> std::string {
     return "unknown";
 }
 
-void Engine::update() {
+void Lou_State::update() {
     auto L = lua_state();
     auto& e = cache.event;
     while (SDL_PollEvent(&e)) {

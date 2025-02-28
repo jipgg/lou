@@ -1,14 +1,11 @@
 
 add_executable(lou_engine WIN32
-    Point.cpp
-    Color.cpp
-    Rect.cpp
-    init.cpp
-    init_luau.cpp
+    lou_init.cpp
+    lou_render.cpp
+    lou_update.cpp
+    luau_init.cpp
     main.cpp
-    meta.cpp
-    render.cpp
-    update.cpp
+    meta_implementations.cpp
 )
 target_link_libraries(lou_engine PRIVATE
     SDL3::SDL3

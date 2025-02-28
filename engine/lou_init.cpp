@@ -1,31 +1,32 @@
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlrenderer3.h>
-#include "engine.hpp"
+#include "Lou.hpp"
 #include <imgui.h>
 #include <filesystem>
 #include <Luau/Compiler.h>
 namespace fs = std::filesystem;
+using Init_Info = Lou_State::Init_Info;
 
-static void init_window_and_renderer(Engine* game, Engine::Init_Info e) {
+static void init_window_and_renderer(Lou_State* state, const Init_Info& info) {
     SDL_Renderer* renderer{};
     SDL_Window* window{};
     SDL_CreateWindowAndRenderer(
-        e.title.c_str(),
-        e.width,
-        e.height,
-        e.flags,
+        info.title.c_str(),
+        info.width,
+        info.height,
+        info.flags,
         &window,
         &renderer
     );
     assert(window and renderer);
-    game->raii.window.reset(window);
-    game->raii.renderer.reset(renderer);
+    state->raii.window.reset(window);
+    state->raii.renderer.reset(renderer);
 }
 
-void Engine::init(Engine::Init_Info e) {
+void Lou_State::init(Init_Info info) {
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
-    init_window_and_renderer(this, e);
+    init_window_and_renderer(this, info);
     ImGui::CreateContext();
     ImGui_ImplSDL3_InitForSDLRenderer(window(), renderer());
     ImGui_ImplSDLRenderer3_Init(renderer());
