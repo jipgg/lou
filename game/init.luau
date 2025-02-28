@@ -8,6 +8,11 @@ lou.console:warn(`{lou}, {lou.console}`)
 local c = lou.console
 c:warn("im a variable")
 
+print(lou.keyboard)
+
+lou.keyboard:released(function(key: string)
+    print(`key is '{key}'`)
+end)
 
 local my_rect = Rect(1, 2, 3, 4)
 lou.console:error(my_rect.x, my_rect.y)

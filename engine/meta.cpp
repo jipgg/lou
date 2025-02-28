@@ -3,12 +3,42 @@
 #include "Namecall_Atom.hpp"
 #include "Tag.hpp"
 
-static auto err_invalid_method(lua_State* L, int atom, Tag tag) {
+
+[[noreturn]] static auto err_invalid_method(lua_State* L, int atom, Tag tag) {
     lua::error(L,
         "invalid method for {} -> {}",
         compile_time::enum_item<Tag>(tag).name,
         compile_time::enum_item<Namecall_Atom>(atom).name
     );
+}
+
+static auto keyboard_namecall(lua_State* L) -> int {
+    auto& self = to_object<Tag::Keyboard>(L, 1);
+    int atom{};
+    lua_namecallatom(L, &atom);
+    switch (static_cast<Namecall_Atom>(atom)) {
+        case Namecall_Atom::pressed:
+            self.pressed.add(L, 2);
+        return 0;
+        case Namecall_Atom::released:
+            self.released.add(L, 2);
+        return 0;
+        default:
+            err_invalid_method(L, atom, Tag::Console);
+        break;
+    }
+}
+
+void Keyboard::push_metatable(lua_State* L) {
+    if (luaL_newmetatable(L, get_metatable_name<Tag::Keyboard>())) {
+        const luaL_Reg meta[] = {
+            {"__namecall", keyboard_namecall},
+            {nullptr, nullptr}
+        };
+        luaL_register(L, nullptr, meta);
+        lua_pushstring(L, "Lou_Keyboard");
+        lua_setfield(L, -2, "__type");
+    }
 }
 
 static auto console_namecall(lua_State *L) -> int {
@@ -64,26 +94,15 @@ static auto engine_index(lua_State* L) -> int {
         // Pretty cool. Only works with a global __index, however.
         push_reference<Tag::Console>(L, state.console);
         return 1;
+    } else if (index == "keyboard") {
+        push_reference<Tag::Keyboard>(L, state.keyboard);
+        return 1;
     }
     lua::error(L, "invalid field '{}'", index);
 }
 static auto engine_newindex(lua_State *L) -> int {
     auto& state = to_object<Tag::Engine>(L, 1);
     std::string_view index = luaL_checkstring(L, 2);
-    auto ref = Lua_Ref(L, 3);
-    if (index == "update") {
-        state.callbacks.update = std::move(ref);
-        return 0;
-    } else if (index == "draw") {
-        state.callbacks.draw = std::move(ref);
-        return 0;
-    } else if (index == "key_up") {
-        state.callbacks.key_up = std::move(ref);
-        return 0;
-    } else if (index == "key_down") {
-        state.callbacks.key_down = std::move(ref);
-        return 0;
-    }
     lua::error(L, "invalid field '{}'", index);
 }
 static auto engine_namecall(lua_State *L) -> int {
@@ -92,12 +111,16 @@ static auto engine_namecall(lua_State *L) -> int {
     lua_namecallatom(L, &atom);
     logger.log("atom is {}, {}", atom, compile_time::enum_item<Namecall_Atom>(atom).name);
     switch (static_cast<Namecall_Atom>(atom)) {
+        case Namecall_Atom::on_update:
+            engine.update_callback.add(L, 2);
+        return 0;
+        case Namecall_Atom::on_draw:
+            engine.draw_callback.add(L, 2);
+        return 0;
         default:
         break;
     }
     err_invalid_method(L, atom, Tag::Engine);
-    return 0;
-
 }
 auto Engine::push_metatable(lua_State *L) -> void {
     if (luaL_newmetatable(L, get_metatable_name<Tag::Engine>())) {

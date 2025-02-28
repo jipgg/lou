@@ -13,6 +13,8 @@
     X(Texture)\
     X(Window)\
     X(Renderer)\
+    X(Keyboard)\
+    X(Mouse)\
     X(COMPILE_TIME_ENUM_SENTINEL)
 
 enum class Tag {
@@ -38,6 +40,8 @@ Map_Type_To_Tag(Rect, SDL_Rect);
 Map_Type_To_Tag(Color, SDL_Color);
 Map_Type_To_Tag(Engine, Engine);
 Map_Type_To_Tag(Console, Console);
+Map_Type_To_Tag(Keyboard, Keyboard);
+Map_Type_To_Tag(Mouse, Mouse);
 
 #undef Map_Type_To_Tag
 

@@ -32,15 +32,20 @@ void Engine::update() {
                 running = false;
             case SDL_EVENT_KEY_DOWN:
             case SDL_EVENT_KEY_UP:
-                auto& cb = e.key.down ? callbacks.key_down : callbacks.key_up;
-                if (cb) {
-                    cb.push(L);
-                    lua_pushstring(L, SDL_GetKeyName(e.key.key));
-                    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
-                        console.error(lua_tostring(L, -1));
-                        lua_pop(L, 1);
-                    }
+                const std::string key = SDL_GetKeyName(e.key.key);
+                if (e.key.down) {
+                    keyboard.pressed.call(L, console, key);
+                } else {
+                    keyboard.released.call(L, console, key);
                 }
+                /*if (cb) {*/
+                /*    cb.push(L);*/
+                /*    lua_pushstring(L, SDL_GetKeyName(e.key.key));*/
+                /*    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {*/
+                /*        console.error(lua_tostring(L, -1));*/
+                /*        lua_pop(L, 1);*/
+                /*    }*/
+                /*}*/
             break;
         }
         ImGui_ImplSDL3_ProcessEvent(&cache.event);
@@ -52,14 +57,15 @@ void Engine::update() {
     ).count();
     cache.last_frame_start = current_frame_start;
 
-    if (callbacks.update) {
-        auto L = lua_state();
-        callbacks.update.push(L);
-        lua::push(L, delta_seconds);
-        if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
-            console.error(lua_tostring(L, -1));
-            lua_pop(L, 1);
-        }
-    }
+    update_callback.call(L, console, delta_seconds);
+    /*if (callbacks.update) {*/
+    /*    auto L = lua_state();*/
+    /*    callbacks.update.push(L);*/
+    /*    lua::push(L, delta_seconds);*/
+    /*    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {*/
+    /*        console.error(lua_tostring(L, -1));*/
+    /*        lua_pop(L, 1);*/
+    /*    }*/
+    /*}*/
 }
 

@@ -46,15 +46,16 @@ auto Engine::draw() -> void {
     ImGui::NewFrame();
     SDL_SetRenderDrawColor(render, 0x0, 0x0, 0x0, 0x0);
     SDL_RenderClear(render);
-    if (callbacks.draw) {
-        auto L = lua_state();
-        callbacks.draw.push(L);
-        if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
-            console.error(lua_tostring(L, -1));
-            lua_pop(L, 1);
-        }
-
-    }
+    draw_callback.call(lua_state(), console);
+    /*if (callbacks.draw) {*/
+    /*    auto L = lua_state();*/
+    /*    callbacks.draw.push(L);*/
+    /*    if (lua_pcall(L, 0, 0, 0) != LUA_OK) {*/
+    /*        console.error(lua_tostring(L, -1));*/
+    /*        lua_pop(L, 1);*/
+    /*    }*/
+    /**/
+    /*}*/
     console.render();
     ImGui::Render();
     ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), render);

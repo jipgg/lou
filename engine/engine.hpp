@@ -57,6 +57,22 @@ struct Logger {
 };
 inline Logger logger{};
 
+struct Keyboard {
+    Callback_List<std::string_view> pressed;
+    Callback_List<std::string_view> released;
+    static void push_metatable(lua_State* L);
+};
+struct Mouse {
+    Callback_List<std::string_view, int, int> pressed;
+    Callback_List<std::string_view, int, int> released;
+    Callback_List<int, int> moved;
+    static void push_metatable(lua_State* L);
+};
+
+struct Window {
+
+};
+
 struct Callbacks {
     Lua_Ref update{};
     Lua_Ref draw{}; 
@@ -84,8 +100,11 @@ struct Engine {
         Time_Point_t last_frame_start{Clock_t::now()};
         SDL_Event event;
     } cache;
-    Callbacks callbacks;
+    Callback_List<double> update_callback;
+    Callback_List<void> draw_callback;
     Console console;
+    Keyboard keyboard;
+    Mouse mouse;
     bool running{true};
     struct Init_Info {
         std::string title{"engine"};
