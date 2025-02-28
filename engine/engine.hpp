@@ -45,7 +45,7 @@ struct Console {
         return basic_print<Severity::Error>(message);
     }
     auto push_as_light_userdata(lua_State* L) -> void;
-    auto push_metatable(lua_State* L) -> void;
+    static auto push_metatable(lua_State* L) -> void;
 };
 struct Logger {
     std::ofstream file{"lou.log", std::ios::app};
@@ -57,7 +57,6 @@ struct Logger {
     }
 };
 inline Logger logger{};
-
 
 struct Engine {
     using Clock_t = std::chrono::steady_clock;
@@ -103,7 +102,7 @@ struct Engine {
     auto window() -> SDL_Window* {return raii.window.get();}
     auto text_engine() -> TTF_TextEngine* {return raii.text_engine.get();}
     auto push_as_light_userdata(lua_State* L) -> void;
-    auto push_metatable(lua_State* L) -> void;
+    static auto push_metatable(lua_State* L) -> void;
 };
 
 auto luaopen_rect(lua_State* L) -> void;

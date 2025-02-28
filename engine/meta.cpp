@@ -17,13 +17,14 @@ static auto console_namecall(lua_State *L) -> int {
     lua_getfield(L, -1, "__type");
     std::string type = luaL_checkstring(L, -1);
     lua_pop(L, 1);
-    luaL_getmetatable(L, typeid(Console).name());
+    push_metatable<Tag::Console>(L);
     auto eq = lua_rawequal(L, -1, -2);
     lua_pop(L, 2);
     logger.log("are equal metatables? {}, {}", eq, type);
     assert(eq);
 
-    auto& self = **(Console**)lua_touserdatatagged(L, 1, int(Tag::Console));
+    //auto& self = **(Console**)lua_touserdatatagged(L, 1, int(Tag::Console));
+    auto& self = *to_object<Tag::Console>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
@@ -41,7 +42,7 @@ static auto console_namecall(lua_State *L) -> int {
 
 }
 auto Console::push_metatable(lua_State* L) -> void {
-    if (luaL_newmetatable(L, typeid(Console).name())) {
+    if (luaL_newmetatable(L, get_metatable_name<Tag::Console>())) {
         const luaL_Reg meta[] = {
             {"__namecall", console_namecall},
             {nullptr, nullptr}
@@ -52,8 +53,9 @@ auto Console::push_metatable(lua_State* L) -> void {
     }
 }
 auto Console::push_as_light_userdata(lua_State* L) -> void {
-    auto& c = *(Console**)lua_newuserdatatagged(L, sizeof(Console*), int(Tag::Console));
-    c = this;
+    //auto& c = *(Console**)lua_newuserdatatagged(L, sizeof(Console*), int(Tag::Console));
+    //c = this;
+    push_reference<Tag::Console>(L, this);
     //lua_pushlightuserdatatagged(L, this, int(Tag::Console));
     push_metatable(L);
     lua_setmetatable(L, -2);
@@ -62,7 +64,8 @@ static auto engine_index(lua_State* L) -> int {
     return 0;
 }
 static auto engine_newindex(lua_State *L) -> int {
-    auto state = (Engine*)lua_tolightuserdatatagged(L, 1, int(Tag::Engine));
+    //auto state = (Engine*)lua_tolightuserdatatagged(L, 1, int(Tag::Engine));
+    auto state = to_object<Tag::Engine>(L, 1);
     std::string_view index = luaL_checkstring(L, 2);
     auto ref = Lua_Ref(L, 3);
     if (index == "update") {
@@ -78,7 +81,8 @@ static auto engine_newindex(lua_State *L) -> int {
 
 }
 static auto engine_namecall(lua_State *L) -> int {
-    auto& engine = *(Engine*)lua_tolightuserdatatagged(L, 1, int(Tag::Engine));
+    //auto& engine = *(Engine*)lua_tolightuserdatatagged(L, 1, int(Tag::Engine));
+    auto& engine = *to_object<Tag::Engine>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
     logger.log("atom is {}, {}", atom, compile_time::enum_item<Namecall_Atom>(atom).name);
@@ -95,7 +99,7 @@ static auto engine_namecall(lua_State *L) -> int {
 
 }
 auto Engine::push_metatable(lua_State *L) -> void {
-    if (luaL_newmetatable(L, typeid(Engine).name())) {
+    if (luaL_newmetatable(L, get_metatable_name<Tag::Engine>())) {
         const luaL_Reg meta[] = {
             {"__newindex", engine_newindex},
             {"__namecall", engine_namecall},
@@ -107,7 +111,8 @@ auto Engine::push_metatable(lua_State *L) -> void {
     }
 }
 auto Engine::push_as_light_userdata(lua_State* L) -> void {
-    lua_pushlightuserdatatagged(L, this, int(Tag::Engine));
+    //lua_pushlightuserdatatagged(L, this, int(Tag::Engine));
+    push_reference<Tag::Engine>(L, this);
     push_metatable(L);
     lua_setmetatable(L, -2);
 }

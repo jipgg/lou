@@ -273,6 +273,9 @@ auto Engine::init_luau() -> void {
 #endif
         {NULL, NULL},
     };
+    Console::push_metatable(L);
+    Engine::push_metatable(L);
+    lua_pop(L, 2);
 
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, NULL, funcs);

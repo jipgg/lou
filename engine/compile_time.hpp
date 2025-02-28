@@ -105,7 +105,7 @@ consteval Enum_Info enum_info() {
 }
 template <auto Val, Sentinel_Enum Ty = decltype(Val)>
 constexpr Enum_Item<Ty> enum_item() {
-    constexpr auto info = enum_info<Ty, Val>();
+    constexpr auto info = enum_info<Val, Ty>();
     return Enum_Item<Ty>{
         .name = info.name,
         .value = static_cast<int>(Val),

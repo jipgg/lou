@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL3/SDL.h>
 #include "engine.hpp"
+#include "compile_time.hpp"
 
 #define Tag_Enum_Item_Generator(X) \
     X(Any)\
@@ -42,17 +43,18 @@ Map_Type_To_Tag(Console, Console);
 
 template <Tag_Reference Val, typename As = Tag>
 requires std::is_integral_v<As>
-consteval auto tag_cast() -> Tag {
+consteval auto tag_cast() -> As {
     return static_cast<As>(static_cast<int>(Val) - LUA_UTAG_LIMIT);
 }
 template <Tag Val, typename As = Tag_Reference>
 requires std::is_integral_v<As>
-consteval auto tag_reference_cast() -> Tag_Reference {
+consteval auto tag_reference_cast() -> As {
     return static_cast<As>(LUA_UTAG_LIMIT - static_cast<int>(Val));
 }
 template <Tag Val>
 auto get_metatable_name() -> const char* {
-    static const std::string name{compile_time::enum_info<Val>().raw};
+    constexpr auto v = compile_time::enum_info<Val>().name;
+    static const std::string name{v};
     return name.c_str();
 }
 template <Tag_Reference Val>
@@ -78,11 +80,11 @@ auto new_object(lua_State* L) -> Ty& {
     return p;
 }
 template <Tag Val, class Ty = Mapped_Type<Val>::Type>
-auto push_reference(lua_State* L, Ty& ref) -> void {
+auto push_reference(lua_State* L, Ty* ref) -> void {
     auto& p = *static_cast<Ty**>(
-        lua_newuserdatatagged(L, sizeof(Ty*), tag_reference_cast<Val, int>())
+        lua_newuserdatatagged(L, sizeof(Ty**), tag_reference_cast<Val, int>())
     );
-    p = &ref;
+    p = ref;
     push_metatable<Val>(L);
     lua_setmetatable(L, -2);
 }
@@ -94,10 +96,10 @@ constexpr auto is_tagged(lua_State* L, int idx) -> bool {
 }
 
 template <Tag Val, class Ty = Mapped_Type<Val>::Type>
-constexpr auto to_object(lua_State* L, int idx) -> Ty& {
+constexpr auto to_object(lua_State* L, int idx) -> Ty* {
     const int tag = lua_userdatatag(L, idx);
     if (tag == static_cast<int>(Val)) {
-        return *static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));
+        return static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));
     } else if (tag == tag_reference_cast<Val, int>()) {
         return *static_cast<Ty**>(lua_touserdatatagged(L, idx, tag_reference_cast<Val, int>()));
     }
