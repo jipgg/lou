@@ -19,6 +19,7 @@ namespace fs = std::filesystem;
 constexpr SDL_Color white{0xff, 0xff ,0xff, 0xff};
 
 auto main(int argc, char** argv) -> int {
+    logger.log("");
     Engine state;
     state.init({
         .title{"test"},

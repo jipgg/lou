@@ -44,7 +44,6 @@ struct Console {
     auto error(const std::string& message) -> void {
         return basic_print<Severity::Error>(message);
     }
-    auto push_as_light_userdata(lua_State* L) -> void;
     static auto push_metatable(lua_State* L) -> void;
 };
 struct Logger {
@@ -58,14 +57,19 @@ struct Logger {
 };
 inline Logger logger{};
 
+struct Callbacks {
+    Lua_Ref update{};
+    Lua_Ref draw{}; 
+    Lua_Ref shutdown{};
+    Lua_Ref key_down{};
+    Lua_Ref key_up{};
+    Lua_Ref mouse_button_down{};
+    Lua_Ref mouse_button_up{};
+    Lua_Ref mouse_motion{};
+    Lua_Ref mouse_scroll{};
+};
+
 struct Engine {
-    using Clock_t = std::chrono::steady_clock;
-    using Time_Point_t = std::chrono::time_point<Clock_t>;
-    struct {
-        Time_Point_t last_frame_start{Clock_t::now()};
-        SDL_Event event;
-        Lua_Ref console;
-    } cache;
     struct {
         template <class Ty>
         using C_Owner_t = std::unique_ptr<Ty, void(*)(Ty*)>; 
@@ -74,17 +78,13 @@ struct Engine {
         C_Owner_t<TTF_TextEngine> text_engine{nullptr, TTF_DestroyRendererTextEngine};
         C_Owner_t<lua_State> luau{nullptr, lua_close};
     } raii;
+    using Clock_t = std::chrono::steady_clock;
+    using Time_Point_t = std::chrono::time_point<Clock_t>;
     struct {
-        Lua_Ref update{};
-        Lua_Ref draw{}; 
-        Lua_Ref shutdown{};
-        Lua_Ref key_down{};
-        Lua_Ref key_up{};
-        Lua_Ref mouse_button_down{};
-        Lua_Ref mouse_button_up{};
-        Lua_Ref mouse_motion{};
-        Lua_Ref mouse_scroll{};
-    } callbacks;
+        Time_Point_t last_frame_start{Clock_t::now()};
+        SDL_Event event;
+    } cache;
+    Callbacks callbacks;
     Console console;
     bool running{true};
     struct Init_Info {
@@ -101,7 +101,6 @@ struct Engine {
     auto renderer() -> SDL_Renderer* {return raii.renderer.get();}
     auto window() -> SDL_Window* {return raii.window.get();}
     auto text_engine() -> TTF_TextEngine* {return raii.text_engine.get();}
-    auto push_as_light_userdata(lua_State* L) -> void;
     static auto push_metatable(lua_State* L) -> void;
 };
 

@@ -9,6 +9,7 @@
 #include <print>
 #include <iostream>
 #include "Namecall_Atom.hpp"
+#include "Tag.hpp"
 namespace fs = std::filesystem;
 namespace rngs = std::ranges;
 
@@ -258,6 +259,16 @@ static auto user_atom(const char* str, size_t len) -> int16_t {
     return static_cast<int16_t>(found->value);
 }
 
+template <typename Ty>
+concept Static_Meta_Pusher = requires (lua_State* L) {
+{Ty::push_metatable(L)} -> std::same_as<void>;
+};
+template <Static_Meta_Pusher Ty>
+static auto init_meta(lua_State* L) -> void {
+    Ty::push_metatable(L);
+    lua_pop(L, 1);
+}
+
 auto Engine::init_luau() -> void {
     raii.luau.reset(luaL_newstate());
     auto L = lua_state();
@@ -273,14 +284,16 @@ auto Engine::init_luau() -> void {
 #endif
         {NULL, NULL},
     };
-    Console::push_metatable(L);
-    Engine::push_metatable(L);
-    lua_pop(L, 2);
+    init_meta<Console>(L);
+    init_meta<Engine>(L);
+    /*Console::push_metatable(L);*/
+    /*Engine::push_metatable(L);*/
+    /*lua_pop(L, 2);*/
 
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, NULL, funcs);
     lua_pop(L, 1);
-    Engine::push_as_light_userdata(L);
+    push_reference<Tag::Engine>(L, this);
     lua_setglobal(L, "lou");
 
     luaL_sandbox(L);

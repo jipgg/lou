@@ -24,7 +24,7 @@ static auto console_namecall(lua_State *L) -> int {
     assert(eq);
 
     //auto& self = **(Console**)lua_touserdatatagged(L, 1, int(Tag::Console));
-    auto& self = *to_object<Tag::Console>(L, 1);
+    auto& self = to_object<Tag::Console>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
@@ -52,45 +52,43 @@ auto Console::push_metatable(lua_State* L) -> void {
         lua_setfield(L, -2, "__type");
     }
 }
-auto Console::push_as_light_userdata(lua_State* L) -> void {
-    //auto& c = *(Console**)lua_newuserdatatagged(L, sizeof(Console*), int(Tag::Console));
-    //c = this;
-    push_reference<Tag::Console>(L, this);
-    //lua_pushlightuserdatatagged(L, this, int(Tag::Console));
-    push_metatable(L);
-    lua_setmetatable(L, -2);
-}
 static auto engine_index(lua_State* L) -> int {
-    return 0;
+    auto& state = to_object<Tag::Engine>(L, 1);
+    std::string_view index = luaL_checkstring(L, 2);
+    if (index == "console") {
+        // no need to cache a lua_ref, cause it is a field in the global 'lou'.
+        // when sandboxed this automatically resolves to 1 invocation.
+        // Pretty cool. Only works with a global __index, however.
+        push_reference<Tag::Console>(L, state.console);
+        return 1;
+    }
+    util::error(L, "invalid field '{}'", index);
 }
 static auto engine_newindex(lua_State *L) -> int {
-    //auto state = (Engine*)lua_tolightuserdatatagged(L, 1, int(Tag::Engine));
-    auto state = to_object<Tag::Engine>(L, 1);
+    auto& state = to_object<Tag::Engine>(L, 1);
     std::string_view index = luaL_checkstring(L, 2);
     auto ref = Lua_Ref(L, 3);
     if (index == "update") {
-        state->callbacks.update = std::move(ref);
+        state.callbacks.update = std::move(ref);
+        return 0;
     } else if (index == "draw") {
-        state->callbacks.draw = std::move(ref);
+        state.callbacks.draw = std::move(ref);
+        return 0;
     } else if (index == "key_up") {
-        state->callbacks.key_up = std::move(ref);
+        state.callbacks.key_up = std::move(ref);
+        return 0;
     } else if (index == "key_down") {
-        state->callbacks.key_down = std::move(ref);
+        state.callbacks.key_down = std::move(ref);
+        return 0;
     }
-    return 0;
-
+    util::error(L, "invalid field '{}'", index);
 }
 static auto engine_namecall(lua_State *L) -> int {
-    //auto& engine = *(Engine*)lua_tolightuserdatatagged(L, 1, int(Tag::Engine));
-    auto& engine = *to_object<Tag::Engine>(L, 1);
+    auto& engine = to_object<Tag::Engine>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
     logger.log("atom is {}, {}", atom, compile_time::enum_item<Namecall_Atom>(atom).name);
     switch (static_cast<Namecall_Atom>(atom)) {
-        case Namecall_Atom::get_console:
-            engine.console.push_as_light_userdata(L);
-            return 1;
-        break;
         default:
         break;
     }
@@ -101,6 +99,7 @@ static auto engine_namecall(lua_State *L) -> int {
 auto Engine::push_metatable(lua_State *L) -> void {
     if (luaL_newmetatable(L, get_metatable_name<Tag::Engine>())) {
         const luaL_Reg meta[] = {
+            {"__index", engine_index},
             {"__newindex", engine_newindex},
             {"__namecall", engine_namecall},
             {nullptr, nullptr}
@@ -109,10 +108,4 @@ auto Engine::push_metatable(lua_State *L) -> void {
         lua_pushstring(L, "Engine");
         lua_setfield(L, -2, "__type");
     }
-}
-auto Engine::push_as_light_userdata(lua_State* L) -> void {
-    //lua_pushlightuserdatatagged(L, this, int(Tag::Engine));
-    push_reference<Tag::Engine>(L, this);
-    push_metatable(L);
-    lua_setmetatable(L, -2);
 }

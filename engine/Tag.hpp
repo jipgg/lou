@@ -85,8 +85,14 @@ auto push_reference(lua_State* L, Ty* ref) -> void {
         lua_newuserdatatagged(L, sizeof(Ty**), tag_reference_cast<Val, int>())
     );
     p = ref;
+    /*lua_pushlightuserdata(L, ref);*/
+    //lua_setuserdatatag(L, -1, tag_reference_cast<Val, int>());
     push_metatable<Val>(L);
     lua_setmetatable(L, -2);
+}
+template <Tag Val, class Ty = Mapped_Type<Val>::Type>
+auto push_reference(lua_State *L, Ty& ref) -> void {
+    push_reference<Val>(L, &ref);
 }
 template <Tag Val, class Ty = Mapped_Type<Val>::Type>
 constexpr auto is_tagged(lua_State* L, int idx) -> bool {
@@ -96,14 +102,21 @@ constexpr auto is_tagged(lua_State* L, int idx) -> bool {
 }
 
 template <Tag Val, class Ty = Mapped_Type<Val>::Type>
-constexpr auto to_object(lua_State* L, int idx) -> Ty* {
+constexpr auto to_object(lua_State* L, int idx) -> Ty& {
+    /*if (lua_islightuserdata(L, idx)) {*/
+    /*    lua_getmetatable(L, idx);*/
+    /*    push_metatable<Val>(L);*/
+    /*    const bool raw_equal = lua_rawequal(L, -1, -2);*/
+    /*    lua_pop(L, 2);*/
+    /*    if (not raw_equal) util::type_error(L, idx, compile_time::enum_info<Val>().name);*/
+    /*    return *static_cast<Ty*>(lua_tolightuserdata(L, idx));*/
+    /*}*/
     const int tag = lua_userdatatag(L, idx);
     if (tag == static_cast<int>(Val)) {
-        return static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));
+        return *static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));
     } else if (tag == tag_reference_cast<Val, int>()) {
-        return *static_cast<Ty**>(lua_touserdatatagged(L, idx, tag_reference_cast<Val, int>()));
+        return **static_cast<Ty**>(lua_touserdatatagged(L, idx, tag_reference_cast<Val, int>()));
     }
-    logger.log("Invalid cast. tag: {}", tag);
-    return nullptr;
+    util::type_error(L, idx, compile_time::enum_info<Val>().name);
 }
 

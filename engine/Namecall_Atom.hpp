@@ -1,6 +1,7 @@
 #pragma once
 #include "compile_time.hpp"
 
+
 enum class Namecall_Atom: int16_t {
     print,
     comment,
