@@ -5,6 +5,13 @@
 #include <format>
 #include <filesystem>
 
+inline auto stamp_time() -> std::string {
+    using namespace std::chrono;
+    using Duration = duration<long long, std::centi>;
+    auto now = zoned_time(current_zone(), time_point_cast<Duration>(system_clock::now()));
+    return std::format("[{:%T}]: ", now);
+}
+
 inline auto stamp_debug_info(const std::source_location& location = std::source_location::current()) -> std::string {
     using namespace std::chrono;
     using namespace std::filesystem;

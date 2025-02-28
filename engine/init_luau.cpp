@@ -305,6 +305,14 @@ auto Engine::init_luau() -> void {
     lua_setglobal(L, "Color");
     Point::push_constructor(L);
     lua_setglobal(L, "Point");
+    auto print = [](lua_State* L) -> int {
+        auto& console = to_object<Tag::Console>(L, lua_upvalueindex(1));
+        console.comment(lua::tuple_tostring(L));
+        return 0;
+    };
+    push_reference<Tag::Console>(L, console);
+    lua_pushcclosure(L, print, "print", 1);
+    lua_setglobal(L, "print");
 
     luaL_sandbox(L);
 }

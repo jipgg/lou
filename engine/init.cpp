@@ -31,6 +31,7 @@ void Engine::init(Engine::Init_Info e) {
     ImGui_ImplSDLRenderer3_Init(renderer());
     auto& io = ImGui::GetIO();
     //auto fonti = io.Fonts->AddFontFromFileTTF("resources/main.ttf", 20);
+    io.FontGlobalScale = 2;
     //ImGui::GetStyle().ScaleAllSizes(5);
     raii.text_engine.reset(TTF_CreateRendererTextEngine(renderer()));
     //auto font = TTF_OpenFont("resources/main.ttf", 60);

@@ -32,7 +32,7 @@ struct Console {
     bool is_dirty{false};
     template <Severity Severity>
     auto basic_print(const std::string& message) -> void {
-        entries.emplace_back(Severity, stamp_debug_info() + std::string(message));
+        entries.emplace_back(Severity, stamp_time() + std::string(message));
         is_dirty = true;
     }
     auto comment(const std::string& message) -> void {
