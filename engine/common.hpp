@@ -96,10 +96,10 @@ struct Callback_List {
     template <class Console_Like>
     requires Can_Output_Error<Console_Like>
     void call(lua_State* L, Console_Like& console, Args...args) {
-        auto push_arg = [&L](auto arg) {lua::push(L, arg);};
+        auto push_arg = [&L](auto arg) {lua::push(L, std::forward<decltype(arg)>(arg));};
         for (auto& fn : handlers) {
             fn.push(L);
-            std::apply(push_arg, std::make_tuple(std::forward<Args>(args)...));
+            (push_arg(std::forward<Args>(args)),...);
             if (lua_pcall(L, sizeof...(Args), 0, 0) != LUA_OK) {
                 console.error(lua_tostring(L, 1));
                 lua_pop(L, 1);

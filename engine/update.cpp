@@ -32,20 +32,34 @@ void Engine::update() {
                 running = false;
             case SDL_EVENT_KEY_DOWN:
             case SDL_EVENT_KEY_UP:
-                const std::string key = SDL_GetKeyName(e.key.key);
                 if (e.key.down) {
-                    keyboard.pressed.call(L, console, key);
+                    keyboard.pressed.call(L, console, SDL_GetKeyName(e.key.key));
                 } else {
-                    keyboard.released.call(L, console, key);
+                    keyboard.released.call(L, console, SDL_GetKeyName(e.key.key));
                 }
-                /*if (cb) {*/
-                /*    cb.push(L);*/
-                /*    lua_pushstring(L, SDL_GetKeyName(e.key.key));*/
-                /*    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {*/
-                /*        console.error(lua_tostring(L, -1));*/
-                /*        lua_pop(L, 1);*/
-                /*    }*/
-                /*}*/
+            break;
+            case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            case SDL_EVENT_MOUSE_BUTTON_UP:
+                if (e.button.down) {
+                    mouse.pressed.call(
+                        L,
+                        console,
+                        button_name(L, e.button.button),
+                        e.button.x,
+                        e.button.y
+                    );
+                } else {
+                    mouse.released.call(
+                        L,
+                        console,
+                        button_name(L, e.button.button),
+                        e.button.x,
+                        e.button.y
+                    );
+                }
+            break;
+            case SDL_EVENT_MOUSE_MOTION:
+                mouse.moved.call(L, console, e.motion.x, e.motion.y);
             break;
         }
         ImGui_ImplSDL3_ProcessEvent(&cache.event);

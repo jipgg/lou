@@ -291,6 +291,7 @@ auto Engine::init_luau() -> void {
     init_meta<Color>(L);
     init_meta<Point>(L);
     init_meta<Keyboard>(L);
+    init_meta<Mouse>(L);
     /*Console::push_metatable(L);*/
     /*Engine::push_metatable(L);*/
     /*lua_pop(L, 2);*/

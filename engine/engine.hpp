@@ -63,8 +63,8 @@ struct Keyboard {
     static void push_metatable(lua_State* L);
 };
 struct Mouse {
-    Callback_List<std::string_view, int, int> pressed;
-    Callback_List<std::string_view, int, int> released;
+    Callback_List<const std::string&, int, int> pressed;
+    Callback_List<const std::string&, int, int> released;
     Callback_List<int, int> moved;
     static void push_metatable(lua_State* L);
 };

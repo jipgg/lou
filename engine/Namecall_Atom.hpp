@@ -11,6 +11,7 @@ enum class Namecall_Atom: int16_t {
     get_window,
     get_renderer,
     get_callbacks,
+    position,
     on_update,
     on_draw,
     pressed,
@@ -18,5 +19,6 @@ enum class Namecall_Atom: int16_t {
     is_pressed,
     is_down,
     is_key_down,
+    moved,
     COMPILE_TIME_ENUM_SENTINEL
 };

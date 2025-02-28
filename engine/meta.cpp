@@ -12,6 +12,72 @@
     );
 }
 
+static auto mouse_index(lua_State* L) -> int {
+    auto& self = to_object<Tag::Mouse>(L, 1);
+    std::string_view key = luaL_checkstring(L, 2);
+    // gotta watch out with this. if accessed directly with `lou.mouse.x`
+    // it returns the a constant initial value because of sandboxing.
+    // easy workaround is first putting `lou.mouse` in a local variable,
+    // but this might be quite confusing and cause complicated bugs for
+    // the ones who are unaware of this fact. might make these methods
+    // specifically for avoiding this confusion.
+    float x, y;
+    SDL_GetMouseState(&x, &y);
+    switch (key.at(0)) {
+        case 'x': 
+            lua::push(L, x);
+        return 1;
+        case 'y':
+            lua::push(L, y);
+        return 1;
+    }
+    lua::arg_error(L, 2, "invalid field '{}'", key);
+}
+static auto mouse_namecall(lua_State* L) -> int {
+    auto& self = to_object<Tag::Mouse>(L, 1);
+    int atom{};
+    lua_namecallatom(L, &atom);
+    switch (static_cast<Namecall_Atom>(atom)) {
+        case Namecall_Atom::pressed:
+            self.pressed.add(L, 2);
+        return 0;
+        case Namecall_Atom::released:
+            self.released.add(L, 2);
+        return 0;
+        case Namecall_Atom::moved:
+            self.moved.add(L, 2);
+        return 0;
+        case Namecall_Atom::position: {
+            float x, y;
+            SDL_GetMouseState(&x, &y);
+            lua::push(L, x);
+            lua::push(L, y);
+            return 2;
+        }
+        default:
+            err_invalid_method(L, atom, Tag::Console);
+        break;
+    }
+}
+void Mouse::push_metatable(lua_State *L) {
+    if (luaL_newmetatable(L, get_metatable_name<Tag::Mouse>())) {
+        const luaL_Reg meta[] = {
+            {"__index", mouse_index},
+            {"__namecall", mouse_namecall},
+            {nullptr, nullptr}
+        };
+        luaL_register(L, nullptr, meta);
+        lua_pushstring(L, "Lou_Mouse");
+        lua_setfield(L, -2, "__type");
+    }
+}
+static auto keyboard_is_pressed(lua_State* L) -> int {
+    const auto key_states = SDL_GetKeyboardState(nullptr);
+    const auto key = SDL_GetScancodeFromName(luaL_checkstring(L, 2));
+    lua::push(L, static_cast<bool>(key_states[key]));
+    return 1;
+}
+
 static auto keyboard_namecall(lua_State* L) -> int {
     auto& self = to_object<Tag::Keyboard>(L, 1);
     int atom{};
@@ -23,8 +89,10 @@ static auto keyboard_namecall(lua_State* L) -> int {
         case Namecall_Atom::released:
             self.released.add(L, 2);
         return 0;
+        case Namecall_Atom::is_pressed:
+        return keyboard_is_pressed(L);
         default:
-            err_invalid_method(L, atom, Tag::Console);
+            err_invalid_method(L, atom, Tag::Keyboard);
         break;
     }
 }
@@ -42,18 +110,6 @@ void Keyboard::push_metatable(lua_State* L) {
 }
 
 static auto console_namecall(lua_State *L) -> int {
-    logger.log("userdatatag is {} in console", lua_lightuserdatatag(L, 1));
-    lua_getmetatable(L, 1);
-    lua_getfield(L, -1, "__type");
-    std::string type = luaL_checkstring(L, -1);
-    lua_pop(L, 1);
-    push_metatable<Tag::Console>(L);
-    auto eq = lua_rawequal(L, -1, -2);
-    lua_pop(L, 2);
-    logger.log("are equal metatables? {}, {}", eq, type);
-    assert(eq);
-
-    //auto& self = **(Console**)lua_touserdatatagged(L, 1, int(Tag::Console));
     auto& self = to_object<Tag::Console>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
@@ -81,7 +137,7 @@ auto Console::push_metatable(lua_State* L) -> void {
             {nullptr, nullptr}
         };
         luaL_register(L, nullptr, meta);
-        lua_pushstring(L, "Console");
+        lua_pushstring(L, "Lou_Console");
         lua_setfield(L, -2, "__type");
     }
 }
@@ -96,6 +152,9 @@ static auto engine_index(lua_State* L) -> int {
         return 1;
     } else if (index == "keyboard") {
         push_reference<Tag::Keyboard>(L, state.keyboard);
+        return 1;
+    } else if (index == "mouse") {
+        push_reference<Tag::Mouse>(L, state.mouse);
         return 1;
     }
     lua::error(L, "invalid field '{}'", index);
@@ -131,7 +190,7 @@ auto Engine::push_metatable(lua_State *L) -> void {
             {nullptr, nullptr}
         };
         luaL_register(L, nullptr, meta);
-        lua_pushstring(L, "Engine");
+        lua_pushstring(L, "Lou_Engine");
         lua_setfield(L, -2, "__type");
     }
 }

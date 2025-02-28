@@ -10,8 +10,13 @@ c:warn("im a variable")
 
 print(lou.keyboard)
 
+
 lou.keyboard:released(function(key: string)
     print(`key is '{key}'`)
+end)
+
+lou:on_update(function(delta_seconds: number)
+    print(lou.mouse:position())
 end)
 
 local my_rect = Rect(1, 2, 3, 4)

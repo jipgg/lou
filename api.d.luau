@@ -47,24 +47,24 @@ declare class Lou_Window
 end
 
 declare class Lou_Mouse
-    x: number
-    y: number
+    --x: number
+    --y: number
     function position(self): (number, number)
     function pressed(self, handler: (type: ('left'|'middle'|'right'), x: number, y: number)->()): ()
     function released(self, handler: (type: ('left'|'middle'|'right'), x: number, y: number)->()): ()
     function moved(self, handler: (x: number, y: number)->()): ()
 end
-export type Keyboard_Key = ('W'|'A'|'S'|'D') & string
 declare class Lou_Keyboard
     function pressed(self, handler: (key: string)->()): ()
     function released(self, handler: (key: string)->()): ()
-    function is_down(self, key: string): boolean
+    function is_pressed(self, key: string): boolean
 end
 
 declare class Lou_Engine 
     renderer: Lou_Renderer
     window: Lou_Window
     mouse: Lou_Mouse
+    get_mouse: () -> Lou_Mouse
     keyboard: Lou_Keyboard
     console: Lou_Console
     function on_draw(self, fn: ()->()): ()
