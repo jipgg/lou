@@ -13,7 +13,7 @@
 #include <imgui.h>
 #include <Luau/Require.h>
 #include <Luau/Compiler.h>
-#include "util.hpp"
+#include "lua_util.hpp"
 namespace fs = std::filesystem;
 
 static auto button_name(lua_State* L, uint8_t button_index) -> std::string {
@@ -55,7 +55,7 @@ void Engine::update() {
     if (callbacks.update) {
         auto L = lua_state();
         callbacks.update.push(L);
-        util::push(L, delta_seconds);
+        lua::push(L, delta_seconds);
         if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
             console.error(lua_tostring(L, -1));
             lua_pop(L, 1);

@@ -2,7 +2,7 @@ bin/
 cmake/
 lsp/
 .nvim.lua
-.luaurc
+lspsetup.lua
 imgui.ini
 
 lou.log

@@ -5,11 +5,8 @@
 #include <format>
 #include <filesystem>
 #include <expected>
-#ifdef DLUAUCORE_EXPORT
-#include <dluau_ex.hpp>
-#endif
 
-namespace util {
+namespace lua {
 template<class Ty>
 inline auto check_vector(lua_State* L, int idx) -> std::span<const float> {
     return std::span<const float>{luaL_checkvector(L, idx), LUA_VECTOR_SIZE};
@@ -107,5 +104,16 @@ auto make_userdata(lua_State* L, Params&&...args) -> Ty& {
     Ty* ud = static_cast<Ty*>(lua_newuserdatadtor(L, sizeof(Ty), default_dtor<Ty>));
     new (ud) Ty{std::forward<Params>(args)...};
     return *ud;
+}
+
+inline auto tuple_tostring(lua_State* L, int startidx = 1) -> std::string {
+    const int top = lua_gettop(L);
+    std::string message;
+    for (int i{startidx}; i <= top; ++i) {
+        message.append(tostring(L, i)).append(", ");
+    }
+    message.pop_back();
+    message.back() = '\n';
+    return message;
 }
 }

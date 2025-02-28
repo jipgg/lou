@@ -1,9 +1,5 @@
 CompileFlags:
   Add:
-    - "-std=c++23"
-    - "-fms-compatibility"
-    - "-fms-extensions"
-    - "-fdelayed-template-parsing"
     # sdl
     - "-I../extern/SDL/include"
     - "-I../extern/SDL_ttf/include"
@@ -15,8 +11,6 @@ CompileFlags:
     - "-I../extern/Luau/Config/include"
     - "-I../extern/Luau/Common/include"
     - "-I../extern/Luau/Ast/include"
-    - "-DLUA_UTAG_LIMIT=255"
-    - "-DLUA_LUTAG_LIMIT=255"
     #imgui
     - "-I../extern/imgui"
     - "-I../extern/imgui/backends"

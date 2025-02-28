@@ -43,14 +43,14 @@
             "name": "engine",
             "configurePreset": "msvc",
             "targets": [
-                "luwuw_engine"
+                "lou_engine"
             ]
         },
         {
             "name": "engine-ninja",
             "configurePreset": "clangd",
             "targets": [
-                "luwuw_engine"
+                "lou_engine"
             ]
         }
   ]

@@ -1,0 +1,9 @@
+CompileFlags:
+  Add:
+    - "-std=c++23"
+    - "-fms-compatibility"
+    - "-fms-extensions"
+    - "-fdelayed-template-parsing"
+    # luaconf
+    - "-DLUA_UTAG_LIMIT=255"
+    - "-DLUA_LUTAG_LIMIT=255"

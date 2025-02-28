@@ -5,11 +5,12 @@
 #include <ranges>
 #include <algorithm>
 #include <fstream>
-#include "util.hpp"
+#include "lua_util.hpp"
 #include <print>
 #include <iostream>
 #include "Namecall_Atom.hpp"
 #include "Tag.hpp"
+#include "structs.hpp"
 namespace fs = std::filesystem;
 namespace rngs = std::ranges;
 
@@ -286,6 +287,9 @@ auto Engine::init_luau() -> void {
     };
     init_meta<Console>(L);
     init_meta<Engine>(L);
+    init_meta<Rect>(L);
+    init_meta<Color>(L);
+    init_meta<Point>(L);
     /*Console::push_metatable(L);*/
     /*Engine::push_metatable(L);*/
     /*lua_pop(L, 2);*/
@@ -295,6 +299,12 @@ auto Engine::init_luau() -> void {
     lua_pop(L, 1);
     push_reference<Tag::Engine>(L, this);
     lua_setglobal(L, "lou");
+    Rect::push_constructor(L);
+    lua_setglobal(L, "Rect");
+    Color::push_constructor(L);
+    lua_setglobal(L, "Color");
+    Point::push_constructor(L);
+    lua_setglobal(L, "Point");
 
     luaL_sandbox(L);
 }

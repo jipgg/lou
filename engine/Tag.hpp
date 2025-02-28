@@ -71,13 +71,13 @@ auto push_metatable(lua_State *L) -> decltype(auto) {
 }
 template <Tag Val, class Ty = Mapped_Type<Val>::Type>
 auto new_object(lua_State* L) -> Ty& {
-    auto& p = *static_cast<Ty*>(
+    auto* p = static_cast<Ty*>(
         lua_newuserdatatagged(L, sizeof(Ty), static_cast<int>(Val))
     );
     new (p) Ty{};
     push_metatable<Val>(L);
     lua_setmetatable(L, -2);
-    return p;
+    return *p;
 }
 template <Tag Val, class Ty = Mapped_Type<Val>::Type>
 auto push_reference(lua_State* L, Ty* ref) -> void {
@@ -117,6 +117,6 @@ constexpr auto to_object(lua_State* L, int idx) -> Ty& {
     } else if (tag == tag_reference_cast<Val, int>()) {
         return **static_cast<Ty**>(lua_touserdatatagged(L, idx, tag_reference_cast<Val, int>()));
     }
-    util::type_error(L, idx, compile_time::enum_info<Val>().name);
+    lua::type_error(L, idx, compile_time::enum_info<Val>().name);
 }
 

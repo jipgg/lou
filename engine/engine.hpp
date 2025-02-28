@@ -11,7 +11,7 @@
 #include <lualib.h>
 #include <fstream>
 #include "compile_time.hpp"
-#include "util.hpp"
+#include "lua_util.hpp"
 #include <chrono>
 #include <sstream>
 #include <print>
@@ -103,8 +103,4 @@ struct Engine {
     auto text_engine() -> TTF_TextEngine* {return raii.text_engine.get();}
     static auto push_metatable(lua_State* L) -> void;
 };
-
-auto luaopen_rect(lua_State* L) -> void;
-auto initRect(lua_State* L) -> void;
-auto rectCtor(lua_State* L) -> int;
 

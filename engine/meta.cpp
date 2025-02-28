@@ -1,14 +1,14 @@
 #include "engine.hpp"
-#include "util.hpp"
+#include "lua_util.hpp"
 #include "Namecall_Atom.hpp"
 #include "Tag.hpp"
 
 static auto err_invalid_method(lua_State* L, int atom, Tag tag) {
-            util::error(L,
-                "invalid method for {} -> {}",
-                compile_time::enum_item<Tag>(tag).name,
-                compile_time::enum_item<Namecall_Atom>(atom).name
-            );
+    lua::error(L,
+        "invalid method for {} -> {}",
+        compile_time::enum_item<Tag>(tag).name,
+        compile_time::enum_item<Namecall_Atom>(atom).name
+    );
 }
 
 static auto console_namecall(lua_State *L) -> int {
@@ -28,11 +28,14 @@ static auto console_namecall(lua_State *L) -> int {
     int atom{};
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
-        case Namecall_Atom::comment:
-            self.comment(luaL_checkstring(L, 2));
+        case Namecall_Atom::print:
+            self.comment(lua::tuple_tostring(L, 2));
         break;
         case Namecall_Atom::warn: 
-            self.warn(luaL_checkstring(L, 2));
+            self.warn(lua::tuple_tostring(L, 2));
+        break;
+        case Namecall_Atom::error:
+            self.error(lua::tuple_tostring(L,2));
         break;
         default:
             err_invalid_method(L, atom, Tag::Console);
@@ -62,7 +65,7 @@ static auto engine_index(lua_State* L) -> int {
         push_reference<Tag::Console>(L, state.console);
         return 1;
     }
-    util::error(L, "invalid field '{}'", index);
+    lua::error(L, "invalid field '{}'", index);
 }
 static auto engine_newindex(lua_State *L) -> int {
     auto& state = to_object<Tag::Engine>(L, 1);
@@ -81,7 +84,7 @@ static auto engine_newindex(lua_State *L) -> int {
         state.callbacks.key_down = std::move(ref);
         return 0;
     }
-    util::error(L, "invalid field '{}'", index);
+    lua::error(L, "invalid field '{}'", index);
 }
 static auto engine_namecall(lua_State *L) -> int {
     auto& engine = to_object<Tag::Engine>(L, 1);
