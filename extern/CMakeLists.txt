@@ -3,6 +3,11 @@ add_subdirectory(Luau)
 add_subdirectory(SDL)
 add_subdirectory(SDL_ttf)
 
+target_compile_definitions(Luau.VM PUBLIC
+    LUA_UTAG_LIMIT=255
+    LUA_LUTAG_LIMIT=255
+)
+
 add_library(imgui STATIC
     imgui/imgui.cpp
     imgui/imgui_draw.cpp

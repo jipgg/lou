@@ -18,23 +18,6 @@
 #include <functional>
 #include "common.hpp"
 
-enum class Tag {
-    Any,
-    Engine,
-    Console,
-    Rect,
-    Point,
-    Color,
-    Texture,
-    Window,
-    Renderer,
-    COMPILE_TIME_ENUM_SENTINEL
-};
-template <Tag Tag> struct Mapped_Type;
-
-#define Map_Type_To_Tag(TAG, TYPE)\
-template <> struct Mapped_Type<Tag::TAG> {using Type = TYPE;}
-
 struct Console {
     auto render() -> void;
     enum class Severity {
@@ -127,52 +110,3 @@ auto luaopen_rect(lua_State* L) -> void;
 auto initRect(lua_State* L) -> void;
 auto rectCtor(lua_State* L) -> int;
 
-Map_Type_To_Tag(Point, SDL_Point);
-Map_Type_To_Tag(Rect, SDL_Rect);
-Map_Type_To_Tag(Color, SDL_Color);
-Map_Type_To_Tag(Engine, Engine);
-Map_Type_To_Tag(Console, Console);
-
-
-/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
-/*constexpr auto new_type(lua_State* L) -> Ty* {*/
-/*    auto p = static_cast<Ty*>(*/
-/*        lua_newuserdatatagged(L, sizeof(Ty), static_cast<int>(Tag))*/
-/*    );*/
-/*    new (p) Ty{};*/
-/*    //std::memset(p, 0, sizeof(Ty));*/
-/*    luaL_getmetatable(L, typeid(Ty).name());*/
-/*    lua_setmetatable(L, -2);*/
-/*    return p;*/
-/*}*/
-/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
-/*constexpr auto push_type(lua_State* L, Ty* ptr) -> void {*/
-/*    logger.log("pushed {}, ptr {}", typeid(Ty).name(), (uintptr_t)ptr);*/
-/*    lua_pushlightuserdatatagged(L, ptr, static_cast<int>(Tag));*/
-/*    luaL_getmetatable(L, typeid(Ty).name());*/
-/*    lua_setmetatable(L, -2);*/
-/*}*/
-/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
-/*constexpr auto is_type(lua_State* L, int idx) -> bool {*/
-/*    if (lua_islightuserdata(L, idx)) {*/
-/*        return lua_lightuserdatatag(L, idx) == int(Tag);*/
-/*    } else {*/
-/*        return lua_userdatatag(L, idx) == int(Tag);*/
-/*    }*/
-/*}*/
-/**/
-/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
-/*constexpr auto to_type(lua_State* L, int idx) -> Ty* {*/
-/*    if (lua_islightuserdata(L, idx)) {*/
-/*        return static_cast<Ty*>(lua_tolightuserdatatagged(L, idx, int(Tag)));*/
-/*    } else {*/
-/*        return static_cast<Ty*>(lua_touserdatatagged(L, idx, int(Tag)));*/
-/*    }*/
-/*}*/
-/**/
-/*template <Tag Tag, class Ty = Mapped_Type<Tag>::Type>*/
-/*constexpr auto check_type(lua_State* L, int idx) -> Ty* {*/
-/*    if (not is_type<Tag>(L, idx)) return nullptr;*/
-/*    return to_type<Tag>(L, idx);*/
-/*}*/
-#undef Map_Type_To_Tag

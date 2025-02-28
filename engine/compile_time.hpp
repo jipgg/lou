@@ -124,12 +124,18 @@ constexpr Enum_Item<Type> enum_item(std::string_view name) {
     constexpr auto array = to_array<Type, Size>();
     auto found_it = std::ranges::find_if(array, [&name](const Enum_Info& e) {return e.name == name;});
     assert(found_it != std::ranges::end(array));
-    return {.name = found_it->name, .value = found_it->value};
+    return {
+        .name = found_it->name,
+        .value = found_it->value
+    };
 }
 template <Sentinel_Enum Type, int Size = count<Type>()>
 constexpr Enum_Item<Type> enum_item(auto value) {
     constexpr auto array = to_array<Type, Size>();
     const auto& info = array.at(static_cast<size_t>(value)); 
-    return {.name = info.name, .value = info.value};
+    return {
+        .name = info.name,
+        .value = info.value
+    };
 }
 }

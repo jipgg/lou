@@ -1,5 +1,6 @@
 #include "engine.hpp"
 #include "util.hpp"
+#include "Tag.hpp"
 
 auto rectIndex(lua_State* L) -> int {
     lua_pushstring(L, "yo");

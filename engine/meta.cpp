@@ -1,6 +1,7 @@
 #include "engine.hpp"
 #include "util.hpp"
 #include "Namecall_Atom.hpp"
+#include "Tag.hpp"
 
 static auto err_invalid_method(lua_State* L, int atom, Tag tag) {
             util::error(L,
