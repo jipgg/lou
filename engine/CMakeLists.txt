@@ -4,7 +4,6 @@ add_executable(lou_engine WIN32
     lou_render.cpp
     lou_update.cpp
     luau_init.cpp
-    main.cpp
     meta_implementations.cpp
 )
 target_link_libraries(lou_engine PRIVATE

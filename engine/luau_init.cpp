@@ -312,3 +312,4 @@ auto Lou_State::init_luau() -> void {
 
     luaL_sandbox(L);
 }
+

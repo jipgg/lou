@@ -1,5 +1,6 @@
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlrenderer3.h>
+#include <SDL3/SDL_main.h>
 #include "Lou.hpp"
 #include <imgui.h>
 #include <filesystem>
@@ -50,4 +51,20 @@ void Lou_State::init(Init_Info info) {
     if (lua_pcall(lua_state(), 0, 0, 0) != LUA_OK) {
         console.error(lua_tostring(lua_state(), -1));
     }
+}
+
+auto main(int argc, char** argv) -> int {
+    Lou_State state;
+    state.init({
+        .title{"test"},
+        .width = 1920,
+        .height = 1080,
+        .flags = SDL_WINDOW_RESIZABLE,
+    });
+    while(state.running) {
+        state.update();
+        state.draw();
+        SDL_Delay(16);
+    }
+    return 0;
 }
