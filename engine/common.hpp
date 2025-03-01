@@ -293,6 +293,15 @@ inline void push(lua_State* L, int integer) {
 inline void push(lua_State* L, bool boolean) {
     lua_pushboolean(L, boolean);
 }
+template <typename Ty>
+concept Has_Push_Overloaded = requires (lua_State* L, Ty&& v) {
+    push(L, std::forward<Ty>(v));
+};
+template <Has_Push_Overloaded ...Ty_Args>
+int return_values(lua_State* L, Ty_Args...args) {
+    (push(L, args), ...);
+    return sizeof...(args);
+} 
 template <class Ty = void>
 auto to_userdata_tagged(lua_State* L, int idx, int tag) -> Ty& {
     return *static_cast<Ty*>(lua_touserdatatagged(L, idx, tag));
@@ -416,12 +425,13 @@ template <class Ty>
 concept Can_Output_Error = requires (lua_State* L) {
     Ty{}.error(lua_tostring(L, 1));
 };
+
 template <class Ty>
-concept Has_Push_Overloaded = requires (lua_State* L) {
+concept Callback_List_Add_Compatible = requires (lua_State* L) {
     push(L, Ty{});
 } or std::is_void_v<Ty>;
 
-template <Has_Push_Overloaded ...Args>
+template <Callback_List_Add_Compatible...Args>
 struct Callback_List {
     std::list<Ref> handlers;
     void add(lua_State* L, int idx) {

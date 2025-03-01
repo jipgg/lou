@@ -1,13 +1,16 @@
 declare print: <Tostring_Compatible_Args...>(Tostring_Compatible_Args...) -> ()
+declare warn: <Tostring_Compatible_Args...>(Tostring_Compatible_Args...) -> ()
 declare class Rect
     x: number
     y: number
     w: number
     h: number
+    function as_tuple(self): (number, number, number, number)
 end
 declare class Point
     x: number
     y: number
+    function as_tuple(self): (number, number)
 end
 
 declare class Color
@@ -15,6 +18,7 @@ declare class Color
     g: number
     b: number
     a: number
+    function as_tuple(self): (number, number, number, number)
 end
 
 declare class Lou_Console
@@ -27,7 +31,18 @@ declare class Lou_Window
     function position(self): (number, number)
     function size(self): (number, number)
     function resize(self, width: number, height: number): ()
-    function move(self, x: number, y: number): ()
+    function reposition(self, x: number, y: number): ()
+    function opacity(self): number
+    function set_opacity(self, opacity: number): ()
+    function title(self): string
+    function set_title(self, title: string): ()
+    function maximize(self): ()
+    function minimize(self): ()
+    function restore(self): ()
+    function enable_fullscreen(self, fullscreen: boolean): ()
+    function size_in_pixels(self): (number, number)
+    function aspect_ratio(self): (number, number)
+
 end
 declare class Lou_Renderer
     function draw_rect(self, rect: Rect): ()

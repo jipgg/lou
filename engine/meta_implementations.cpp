@@ -62,6 +62,9 @@ static auto point_tostring(lua_State* L) -> int {
     lua::push(L, "Point: {{{}, {}}}", self.x, self.y);
     return 1;
 }
+static auto point_namecall(lua_State* L) -> int {
+
+}
 void Point::push_metatable(lua_State *L) {
     constexpr luaL_Reg meta[] = {
         {"__index", point_index},
@@ -193,9 +196,9 @@ void Color::push_constructor(lua_State *L) {
     lua_pushcfunction(L, constructor, "Color");
 }
 // Lou_Window meta implementation
-
 static auto window_namecall(lua_State* L) -> int {
     auto& window = to_tagged<Window>(L, 1);
+    auto ptr = window.get();
     int atom;
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
@@ -219,11 +222,57 @@ static auto window_namecall(lua_State* L) -> int {
             check_sdl(L,SDL_SetWindowSize(window.get(), w, h));
             return 0;
         }
-        case Namecall_Atom::move: {
+        case Namecall_Atom::reposition: {
             const int x = lua::check<int>(L, 2);
             const int y = lua::check<int>(L, 3);
             check_sdl(L, SDL_SetWindowPosition(window.get(), x, y));
             return 0;
+        }
+        case Namecall_Atom::opacity: {
+            lua::push(L, SDL_GetWindowOpacity(ptr));
+            return 1;
+        }
+        case Namecall_Atom::set_opacity: {
+            check_sdl(L, SDL_SetWindowOpacity(ptr, lua::check<float>(L, 2)));
+            return 0;
+        }
+        case Namecall_Atom::title: {
+            lua::push(L, SDL_GetWindowTitle(ptr));
+            return 1;
+        }
+        case Namecall_Atom::set_title: {
+            check_sdl(L, SDL_SetWindowTitle(ptr, lua::check<const char*>(L, 2)));
+            return 0;
+        }
+        case Namecall_Atom::maximize: {
+            check_sdl(L, SDL_MaximizeWindow(ptr));
+            return 0;
+        }
+        case Namecall_Atom::minimize: {
+            check_sdl(L, SDL_MinimizeWindow(ptr));
+            return 0;
+        }
+        case Namecall_Atom::restore: {
+            check_sdl(L, SDL_RestoreWindow(ptr));
+            return 0;
+        }
+        case Namecall_Atom::enable_fullscreen: {
+            check_sdl(L, SDL_SetWindowFullscreen(ptr, lua::check<bool>(L, 2)));
+            return 0;
+        }
+        case Namecall_Atom::size_in_pixels: {
+            int w, h;
+            check_sdl(L, SDL_GetWindowSizeInPixels(ptr, &w, &h));
+            lua::push(L, w);
+            lua::push(L, h);
+            return 2;
+        }
+        case Namecall_Atom::aspect_ratio: {
+            float min_aspect, max_aspect;
+            check_sdl(L, SDL_GetWindowAspectRatio(ptr, &min_aspect, &max_aspect));
+            lua::push(L, min_aspect);
+            lua::push(L, max_aspect);
+            return 2;
         }
         default: break;
     }
@@ -318,9 +367,7 @@ static auto mouse_namecall(lua_State* L) -> int {
         case Namecall_Atom::position: {
             float x, y;
             SDL_GetMouseState(&x, &y);
-            lua::push(L, x);
-            lua::push(L, y);
-            return 2;
+            return lua::return_values(L, x, y);
         }
         default:
             err_invalid_method<Mouse>(L, atom);
