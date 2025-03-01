@@ -60,7 +60,7 @@ declare class Lou_Keyboard
     function is_pressed(self, key: string): boolean
 end
 
-declare class Lou_Engine 
+declare class Lou_State 
     renderer: Lou_Renderer
     window: Lou_Window
     mouse: Lou_Mouse
@@ -71,7 +71,7 @@ declare class Lou_Engine
     function on_update(self, fn: (delta_seconds: number)->()): ()
 end
 
-declare lou: Lou_Engine 
+declare lou: Lou_State 
 declare function Rect(x: number?, y: number?, w: number?, h: number?): Rect
 declare function Point(x: number?, y: number?): Point
 declare function Color(r: number?, g: number?, b: number?, a: number?): Color

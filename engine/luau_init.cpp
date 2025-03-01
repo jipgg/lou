@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <fstream>
 #include <print>
-#include <iostream>
 namespace fs = std::filesystem;
 namespace rngs = std::ranges;
 
@@ -268,7 +267,7 @@ static auto init_meta(lua_State* L) -> void {
 }
 
 auto Lou_State::init_luau() -> void {
-    raii.luau.reset(luaL_newstate());
+    owning.luau.reset(luaL_newstate());
     auto L = lua_state();
     lua_callbacks(L)->useratom = user_atom;
     if (codegen) Luau::CodeGen::create(L);
@@ -289,6 +288,8 @@ auto Lou_State::init_luau() -> void {
     init_meta<Point>(L);
     init_meta<Lou_Keyboard>(L);
     init_meta<Lou_Mouse>(L);
+    init_meta<Lou_Window>(L);
+    init_meta<Lou_Renderer>(L);
 
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, nullptr, funcs);

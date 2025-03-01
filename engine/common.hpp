@@ -349,6 +349,7 @@ template <class Ty>
 concept Has_Push_Overloaded = requires (lua_State* L) {
     push(L, Ty{});
 } or std::is_void_v<Ty>;
+
 template <Has_Push_Overloaded ...Args>
 struct Callback_List {
     std::list<Ref> handlers;

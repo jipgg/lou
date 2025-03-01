@@ -70,16 +70,6 @@ void Lou_State::update() {
         current_frame_start - cache.last_frame_start
     ).count();
     cache.last_frame_start = current_frame_start;
-
-    update_callback.call(L, console, delta_seconds);
-    /*if (callbacks.update) {*/
-    /*    auto L = lua_state();*/
-    /*    callbacks.update.push(L);*/
-    /*    lua::push(L, delta_seconds);*/
-    /*    if (lua_pcall(L, 1, 0, 0) != LUA_OK) {*/
-    /*        console.error(lua_tostring(L, -1));*/
-    /*        lua_pop(L, 1);*/
-    /*    }*/
-    /*}*/
+    on_update.call(L, console, delta_seconds);
 }
 

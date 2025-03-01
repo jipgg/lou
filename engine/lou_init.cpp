@@ -20,8 +20,8 @@ static void init_window_and_renderer(Lou_State* state, const Init_Info& info) {
         &renderer
     );
     assert(window and renderer);
-    state->raii.window.reset(window);
-    state->raii.renderer.reset(renderer);
+    state->window.owning.window.reset(window);
+    state->renderer.owning.renderer.reset(renderer);
 }
 
 void Lou_State::init(Init_Info info) {
@@ -29,13 +29,13 @@ void Lou_State::init(Init_Info info) {
     TTF_Init();
     init_window_and_renderer(this, info);
     ImGui::CreateContext();
-    ImGui_ImplSDL3_InitForSDLRenderer(window(), renderer());
-    ImGui_ImplSDLRenderer3_Init(renderer());
+    ImGui_ImplSDL3_InitForSDLRenderer(window.get(), renderer.get());
+    ImGui_ImplSDLRenderer3_Init(renderer.get());
     auto& io = ImGui::GetIO();
     //auto fonti = io.Fonts->AddFontFromFileTTF("resources/main.ttf", 20);
     io.FontGlobalScale = 2;
     //ImGui::GetStyle().ScaleAllSizes(5);
-    raii.text_engine.reset(TTF_CreateRendererTextEngine(renderer()));
+    renderer.owning.text_engine.reset(TTF_CreateRendererTextEngine(renderer.get()));
     //auto font = TTF_OpenFont("resources/main.ttf", 60);
     init_luau();
     fs::path path{"game/init.luau"};
@@ -63,7 +63,7 @@ auto main(int argc, char** argv) -> int {
     });
     while(state.running) {
         state.update();
-        state.draw();
+        state.render();
         SDL_Delay(16);
     }
     return 0;

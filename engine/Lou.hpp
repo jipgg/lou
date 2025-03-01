@@ -12,6 +12,9 @@
 #include <print>
 #include "common.hpp"
 
+template <class Ty>
+using C_Owner_t = std::unique_ptr<Ty, void(*)(Ty*)>; 
+
 struct Rect {
     static void push_constructor(lua_State* L);
     static void push_metatable(lua_State* L);
@@ -67,29 +70,40 @@ struct Lou_Mouse {
 };
 
 struct Lou_Window {
+    struct {
+        C_Owner_t<SDL_Window> window{nullptr, SDL_DestroyWindow};
+    } owning;
+    constexpr auto get() -> SDL_Window* const {return owning.window.get();}
+    static void push_metatable(lua_State* L);
+};
 
+struct Lou_Renderer {
+    struct {
+        C_Owner_t<SDL_Renderer> renderer{nullptr, SDL_DestroyRenderer};
+        C_Owner_t<TTF_TextEngine> text_engine{nullptr, TTF_DestroyRendererTextEngine};
+    } owning;
+    constexpr auto get() -> SDL_Renderer* const {return owning.renderer.get();}
+    constexpr auto get_text_engine() -> TTF_TextEngine* const {return owning.text_engine.get();}
+    static void push_metatable(lua_State* L);
 };
 
 struct Lou_State {
     struct {
-        template <class Ty>
-        using C_Owner_t = std::unique_ptr<Ty, void(*)(Ty*)>; 
-        C_Owner_t<SDL_Renderer> renderer{nullptr, SDL_DestroyRenderer};
-        C_Owner_t<SDL_Window> window{nullptr, SDL_DestroyWindow};
-        C_Owner_t<TTF_TextEngine> text_engine{nullptr, TTF_DestroyRendererTextEngine};
         C_Owner_t<lua_State> luau{nullptr, lua_close};
-    } raii;
+    } owning;
+    Lou_Window window;
+    Lou_Renderer renderer;
+    Lou_Console console;
+    Lou_Keyboard keyboard;
+    Lou_Mouse mouse;
     using Clock_t = std::chrono::steady_clock;
     using Time_Point_t = std::chrono::time_point<Clock_t>;
     struct {
         Time_Point_t last_frame_start{Clock_t::now()};
         SDL_Event event;
     } cache;
-    lua::Callback_List<double> update_callback;
-    lua::Callback_List<void> draw_callback;
-    Lou_Console console;
-    Lou_Keyboard keyboard;
-    Lou_Mouse mouse;
+    lua::Callback_List<double> on_update;
+    lua::Callback_List<void> on_render;
     bool running{true};
     struct Init_Info {
         std::string title{"engine"};
@@ -100,11 +114,8 @@ struct Lou_State {
     void init(Init_Info data);
     void init_luau();
     void update();
-    void draw();
-    auto lua_state() -> lua_State* {return raii.luau.get();}
-    auto renderer() -> SDL_Renderer* {return raii.renderer.get();}
-    auto window() -> SDL_Window* {return raii.window.get();}
-    auto text_engine() -> TTF_TextEngine* {return raii.text_engine.get();}
+    void render();
+    constexpr auto lua_state() -> lua_State* {return owning.luau.get();}
     static auto push_metatable(lua_State* L) -> void;
 };
 
@@ -119,7 +130,23 @@ enum class Namecall_Atom: int16_t {
     get_callbacks,
     position,
     on_update,
-    on_draw,
+    on_render,
+    size_changed,
+    resized,
+    resize,
+    size,
+    clear,
+    draw_rect,
+    draw_point,
+    draw_line,
+    draw_triangle,
+    draw_ellipse,
+    fill_rect,
+    fill_point,
+    fill_line,
+    fill_triangle,
+    fill_ellipse,
+    move,
     pressed,
     released,
     is_pressed,
@@ -161,13 +188,15 @@ template <Tag Tag> struct Mapped_Type;
 #define Map_Type_To_Tag(TAG, TYPE)\
 template <> struct Mapped_Type<Tag::TAG> {using Type = TYPE;}
 
-Map_Type_To_Tag(Point, SDL_Point);
-Map_Type_To_Tag(Rect, SDL_Rect);
+Map_Type_To_Tag(Point, SDL_FPoint);
+Map_Type_To_Tag(Rect, SDL_FRect);
 Map_Type_To_Tag(Color, SDL_Color);
 Map_Type_To_Tag(Lou_State, Lou_State);
 Map_Type_To_Tag(Lou_Console, Lou_Console);
 Map_Type_To_Tag(Lou_Keyboard, Lou_Keyboard);
 Map_Type_To_Tag(Lou_Mouse, Lou_Mouse);
+Map_Type_To_Tag(Lou_Window, Lou_Window);
+Map_Type_To_Tag(Lou_Renderer, Lou_Renderer);
 
 #undef Map_Type_To_Tag
 
@@ -215,8 +244,6 @@ auto push_reference(lua_State* L, Ty* ref) -> void {
         lua_newuserdatatagged(L, sizeof(Ty**), tag_reference_cast<Val, int>())
     );
     p = ref;
-    /*lua_pushlightuserdata(L, ref);*/
-    //lua_setuserdatatag(L, -1, tag_reference_cast<Val, int>());
     push_metatable<Val>(L);
     lua_setmetatable(L, -2);
 }
@@ -233,14 +260,6 @@ constexpr auto is_tagged(lua_State* L, int idx) -> bool {
 
 template <Tag Val, class Ty = Mapped_Type<Val>::Type>
 constexpr auto to_object(lua_State* L, int idx) -> Ty& {
-    /*if (lua_islightuserdata(L, idx)) {*/
-    /*    lua_getmetatable(L, idx);*/
-    /*    push_metatable<Val>(L);*/
-    /*    const bool raw_equal = lua_rawequal(L, -1, -2);*/
-    /*    lua_pop(L, 2);*/
-    /*    if (not raw_equal) util::type_error(L, idx, compile_time::enum_info<Val>().name);*/
-    /*    return *static_cast<Ty*>(lua_tolightuserdata(L, idx));*/
-    /*}*/
     const int tag = lua_userdatatag(L, idx);
     if (tag == static_cast<int>(Val)) {
         return *static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));

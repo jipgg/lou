@@ -6,6 +6,8 @@ constexpr auto State = Tag::Lou_State;
 constexpr auto Mouse = Tag::Lou_Mouse;
 constexpr auto Keyboard = Tag::Lou_Keyboard;
 constexpr auto Console = Tag::Lou_Console;
+constexpr auto Window = Tag::Lou_Window;
+constexpr auto Renderer = Tag::Lou_Renderer;
 template <Tag Val>
 [[noreturn]] static auto err_invalid_method(lua_State* L, int atom) {
     lua::error(L,
@@ -21,8 +23,19 @@ constexpr auto set_type_metamethod(lua_State* L) {
     lua_setfield(L, -2, "__type");
 }
 template <Tag Val>
-static auto new_metatable(lua_State* L) -> bool {
+constexpr auto new_metatable(lua_State* L) -> bool {
     return luaL_newmetatable(L, get_metatable_name<Val>());
+}
+template <Tag Val>
+constexpr void basic_push_metatable(lua_State* L, const luaL_Reg* meta) {
+    if (new_metatable<Val>(L)) {
+        luaL_register(L, nullptr, meta);
+        set_type_metamethod<Val>(L);
+    }
+}
+static void check_sdl(lua_State* L, bool result) {
+    if (result) return;
+    lua::error(L, SDL_GetError());
 }
 // Point meta implementation
 static auto point_index(lua_State* L) -> int {
@@ -37,7 +50,7 @@ static auto point_index(lua_State* L) -> int {
 static auto point_newindex(lua_State* L) -> int {
     auto& self = to_object<Tag::Point>(L, 1);
     const char initial = *luaL_checkstring(L, 2);
-    const int val = luaL_checkinteger(L, 3);
+    const float val = static_cast<float>(luaL_checknumber(L, 3));
     switch (initial) {
         case 'x': self.x = val; return 0;
         case 'y': self.y = val; return 0;
@@ -50,22 +63,19 @@ static auto point_tostring(lua_State* L) -> int {
     return 1;
 }
 void Point::push_metatable(lua_State *L) {
-    if (new_metatable<Tag::Point>(L)) {
-        const luaL_Reg meta[] = {
-            {"__index", point_index},
-            {"__newindex", point_newindex},
-            {"__tostring", point_tostring},
-            {nullptr, nullptr}
-        };
-        luaL_register(L, nullptr, meta);
-        set_type_metamethod<Tag::Point>(L);
-    }
+    constexpr luaL_Reg meta[] = {
+        {"__index", point_index},
+        {"__newindex", point_newindex},
+        {"__tostring", point_tostring},
+        {nullptr, nullptr}
+    };
+    basic_push_metatable<Tag::Point>(L, meta);
 }
 void Point::push_constructor(lua_State *L) {
     auto constructor = [](auto L) {
-        SDL_Point self{
-            .x = luaL_optinteger(L, 1, 0),
-            .y = luaL_optinteger(L, 2, 0),
+        SDL_FPoint self{
+            .x = static_cast<float>(luaL_optnumber(L, 1, 0)),
+            .y = static_cast<float>(luaL_optnumber(L, 2, 0)),
         };
         new_object<Tag::Point>(L) = std::move(self);
         return 1;
@@ -87,7 +97,7 @@ static auto rect_index(lua_State* L) -> int {
 static auto rect_newindex(lua_State* L) -> int {
     auto& rect = to_object<Tag::Rect>(L, 1);
     const char initial = *luaL_checkstring(L, 2);
-    const int val = luaL_checkinteger(L, 3);
+    const float val = static_cast<float>(luaL_checknumber(L, 3));
     switch (initial) {
         case 'x': rect.x = val; return 0;
         case 'y': rect.y = val; return 0;
@@ -116,11 +126,11 @@ void Rect::push_metatable(lua_State *L) {
 }
 void Rect::push_constructor(lua_State *L) {
     auto constructor = [](auto L) {
-        SDL_Rect rect{
-            .x = luaL_optinteger(L, 1, 0),
-            .y = luaL_optinteger(L, 2, 0),
-            .w = luaL_optinteger(L, 3, 0),
-            .h = luaL_optinteger(L, 4, 0),
+        SDL_FRect rect{
+            .x = static_cast<float>(luaL_optnumber(L, 1, 0)),
+            .y = static_cast<float>(luaL_optnumber(L, 2, 0)),
+            .w = static_cast<float>(luaL_optnumber(L, 3, 0)),
+            .h = static_cast<float>(luaL_optnumber(L, 4, 0)),
         };
         new_object<Tag::Rect>(L) = std::move(rect);
         return 1;
@@ -181,6 +191,81 @@ void Color::push_constructor(lua_State *L) {
         return 1;
     };
     lua_pushcfunction(L, constructor, "Color");
+}
+// Lou_Window meta implementation
+
+static auto window_namecall(lua_State* L) -> int {
+    auto& window = to_object<Window>(L, 1);
+    int atom;
+    lua_namecallatom(L, &atom);
+    switch (static_cast<Namecall_Atom>(atom)) {
+        case Namecall_Atom::position: {
+            int x, y;
+            check_sdl(L, SDL_GetWindowPosition(window.get(), &x, &y));
+            lua::push(L, x);
+            lua::push(L, y);
+            return 2;
+        }
+        case Namecall_Atom::size: {
+            int w, h;
+            check_sdl(L, SDL_GetWindowSize(window.get(), &w, &h));
+            lua::push(L, w);
+            lua::push(L, h);
+            return 2;
+        }
+        case Namecall_Atom::resize: {
+            const int w = luaL_checkinteger(L, 2);
+            const int h = luaL_checkinteger(L, 3);
+            check_sdl(L,SDL_SetWindowSize(window.get(), w, h));
+            return 0;
+        }
+        case Namecall_Atom::move: {
+            const int x = luaL_checkinteger(L, 2);
+            const int y = luaL_checkinteger(L, 3);
+            check_sdl(L, SDL_SetWindowPosition(window.get(), x, y));
+            return 0;
+        }
+        default: break;
+    }
+    err_invalid_method<Window>(L, atom);
+}
+void Lou_Window::push_metatable(lua_State *L) {
+    constexpr luaL_Reg meta[] = {
+        {"__namecall", window_namecall},
+        {nullptr, nullptr}
+    };
+    basic_push_metatable<Window>(L, meta);
+}
+
+// Lou_Renderer meta implementation
+static auto renderer_namecall(lua_State* L) -> int {
+    auto& renderer = to_object<Renderer>(L, 1);
+    auto ptr = renderer.get();
+    int atom;
+    lua_namecallatom(L, &atom);
+    switch (static_cast<Namecall_Atom>(atom)) {
+        case Namecall_Atom::draw_rect:
+            check_sdl(L, SDL_RenderRect(ptr, &to_object<Tag::Rect>(L, 2)));
+        return 0;
+        case Namecall_Atom::fill_rect:
+            check_sdl(L, SDL_RenderFillRect(ptr, &to_object<Tag::Rect>(L, 2)));
+        return 0;
+        case Namecall_Atom::draw_point: {
+            const float x = static_cast<float>(luaL_checknumber(L, 2));
+            const float y = static_cast<float>(luaL_checknumber(L, 2));
+            check_sdl(L, SDL_RenderPoint(ptr, x, y));
+            return 0;
+        }
+        default: break;
+    }
+    err_invalid_method<Renderer>(L, atom);
+}
+void Lou_Renderer::push_metatable(lua_State *L) {
+    constexpr luaL_Reg meta[] = {
+        {"__namecall", renderer_namecall},
+        {nullptr, nullptr}
+    };
+    basic_push_metatable<Renderer>(L, meta);
 }
 // Lou_Mouse meta implementation
 static auto mouse_index(lua_State* L) -> int {
@@ -339,10 +424,10 @@ static auto state_namecall(lua_State *L) -> int {
     logger.log("atom is {}, {}", atom, compile_time::enum_item<Namecall_Atom>(atom).name);
     switch (static_cast<Namecall_Atom>(atom)) {
         case Namecall_Atom::on_update:
-            engine.update_callback.add(L, 2);
+            engine.on_update.add(L, 2);
         return 0;
-        case Namecall_Atom::on_draw:
-            engine.draw_callback.add(L, 2);
+        case Namecall_Atom::on_render:
+            engine.on_render.add(L, 2);
         return 0;
         default:
         break;
