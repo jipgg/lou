@@ -330,6 +330,77 @@ auto make_userdata(lua_State* L, Params&&...args) -> Ty& {
     new (ud) Ty{std::forward<Params>(args)...};
     return *ud;
 }
+/*
+template <class Ty = double, double Default = 0>
+requires Number_Compatible<Ty>
+constexpr auto opt_number(lua_State* L, int idx) -> Ty {
+    return static_cast<Ty>(luaL_optnumber(L, idx, Default));
+}
+*/
+template <class Ty>
+concept Number_Compatible = requires {
+    {static_cast<Ty>(double{})} -> std::same_as<Ty>;
+};
+template <class Ty>
+concept String_Compatible = requires (const Ty& str) {
+    {str.data()} -> std::convertible_to<const char*>;
+    {str.size()} -> std::convertible_to<size_t>;
+};
+template <class Ty>
+constexpr auto to(lua_State* L, int idx) -> Ty {
+    if constexpr (std::same_as<Ty, bool>) {
+        return lua_toboolean(L, idx);
+    } else if constexpr (std::same_as<Ty, char>) {
+        return *lua_tostring(L, idx);
+    } else if constexpr (Number_Compatible<Ty>) {
+        return lua_tonumber(L, idx);
+    } else if constexpr (String_Compatible<Ty>
+        or std::same_as<Ty, const char*>) {
+        return lua_tostring(L, idx);
+    } else {
+        static_assert(false, "unsupported type");
+    } 
+}
+template <class Ty>
+constexpr auto check(lua_State* L, int idx) -> Ty {
+    if constexpr (std::same_as<Ty, bool>) {
+        return luaL_checkboolean(L, idx);
+    } else if constexpr (std::same_as<Ty, char>) {
+        return *luaL_checkstring(L, idx);
+    } else if constexpr (Number_Compatible<Ty>) {
+        return luaL_checknumber(L, idx);
+    } else if constexpr (String_Compatible<Ty>
+        or std::same_as<Ty, const char*>) {
+        return luaL_checkstring(L, idx);
+    } else {
+        static_assert(false, "unsupported type");
+    } 
+}
+template <class Ty> consteval auto default_value() -> decltype(auto) {
+    if constexpr (std::same_as<Ty, bool>) {
+        return false;
+    } else if constexpr (Number_Compatible<Ty>) {
+        return 0;
+    } else if constexpr (String_Compatible<Ty>
+        or std::same_as<Ty, const char*>) {
+        return "";
+    } else {
+        static_assert(false, "unsupported type");
+    } 
+}
+template <class Ty, auto Default = default_value<Ty>()>
+constexpr auto opt(lua_State* L, int idx) -> Ty {
+    if constexpr (std::same_as<Ty, bool>) {
+        return luaL_optboolean(L, idx, Default);
+    } else if constexpr (Number_Compatible<Ty>) {
+        return luaL_optnumber(L, idx, Default);
+    } else if constexpr (String_Compatible<Ty>
+        or std::same_as<Ty, const char*>) {
+        return luaL_optstring(L, idx, Default);
+    } else {
+        static_assert(false, "unsupported type");
+    } 
+}
 
 inline auto tuple_tostring(lua_State* L, int startidx = 1) -> std::string {
     const int top = lua_gettop(L);

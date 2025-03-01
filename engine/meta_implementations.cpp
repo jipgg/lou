@@ -40,7 +40,7 @@ static void check_sdl(lua_State* L, bool result) {
 // Point meta implementation
 static auto point_index(lua_State* L) -> int {
     auto& self = to_tagged<Tag::Point>(L, 1);
-    const char initial = *luaL_checkstring(L, 2);
+    const char initial = *lua::check<const char*>(L, 2);
     switch (initial) {
         case 'x': lua::push(L, self.x); return 1;
         case 'y': lua::push(L, self.y); return 1;
@@ -49,8 +49,8 @@ static auto point_index(lua_State* L) -> int {
 }
 static auto point_newindex(lua_State* L) -> int {
     auto& self = to_tagged<Tag::Point>(L, 1);
-    const char initial = *luaL_checkstring(L, 2);
-    const float val = static_cast<float>(luaL_checknumber(L, 3));
+    const auto initial = *lua::check<const char*>(L, 2);
+    const auto val = lua::check<float>(L, 3);
     switch (initial) {
         case 'x': self.x = val; return 0;
         case 'y': self.y = val; return 0;
@@ -74,8 +74,8 @@ void Point::push_metatable(lua_State *L) {
 void Point::push_constructor(lua_State *L) {
     auto constructor = [](auto L) {
         SDL_FPoint self{
-            .x = static_cast<float>(luaL_optnumber(L, 1, 0)),
-            .y = static_cast<float>(luaL_optnumber(L, 2, 0)),
+            .x = lua::opt<float>(L, 1),
+            .y = lua::opt<float>(L, 2),
         };
         new_tagged<Tag::Point>(L) = std::move(self);
         return 1;
@@ -127,10 +127,10 @@ void Rect::push_metatable(lua_State *L) {
 void Rect::push_constructor(lua_State *L) {
     auto constructor = [](auto L) {
         SDL_FRect rect{
-            .x = static_cast<float>(luaL_optnumber(L, 1, 0)),
-            .y = static_cast<float>(luaL_optnumber(L, 2, 0)),
-            .w = static_cast<float>(luaL_optnumber(L, 3, 0)),
-            .h = static_cast<float>(luaL_optnumber(L, 4, 0)),
+            .x = lua::opt<float>(L, 1),
+            .y = lua::opt<float>(L, 2),
+            .w = lua::opt<float>(L, 3),
+            .h = lua::opt<float>(L, 4),
         };
         new_tagged<Tag::Rect>(L) = std::move(rect);
         return 1;
@@ -141,7 +141,7 @@ void Rect::push_constructor(lua_State *L) {
 // Color meta implementation
 static auto color_index(lua_State* L) -> int {
     auto& self = to_tagged<Tag::Color>(L, 1);
-    const char initial = *luaL_checkstring(L, 2);
+    const auto initial = lua::check<char>(L, 2);
     switch (initial) {
         case 'r': lua::push(L, self.r); return 1;
         case 'g': lua::push(L, self.g); return 1;
@@ -152,8 +152,8 @@ static auto color_index(lua_State* L) -> int {
 }
 static auto color_newindex(lua_State* L) -> int {
     auto& self = to_tagged<Tag::Color>(L, 1);
-    const char initial = *luaL_checkstring(L, 2);
-    const uint8_t val = static_cast<uint8_t>(luaL_checkinteger(L, 3));
+    const char initial = lua::check<char>(L, 2);
+    const auto val = lua::check<uint8_t>(L, 3);
     switch (initial) {
         case 'r': self.r = val; return 0;
         case 'g': self.g = val; return 0;
@@ -182,10 +182,10 @@ void Color::push_metatable(lua_State *L) {
 void Color::push_constructor(lua_State *L) {
     auto constructor = [](auto L) {
         SDL_Color self{
-            .r = static_cast<uint8_t>(luaL_optinteger(L, 1, 0)),
-            .g = static_cast<uint8_t>(luaL_optinteger(L, 2, 0)),
-            .b = static_cast<uint8_t>(luaL_optinteger(L, 3, 0)),
-            .a = static_cast<uint8_t>(luaL_optinteger(L, 4, 0)),
+            .r = lua::opt<uint8_t>(L, 1),
+            .g = lua::opt<uint8_t>(L, 2),
+            .b = lua::opt<uint8_t>(L, 3),
+            .a = lua::opt<uint8_t, 0xff>(L, 4),
         };
         new_tagged<Tag::Color>(L) = std::move(self);
         return 1;
@@ -214,14 +214,14 @@ static auto window_namecall(lua_State* L) -> int {
             return 2;
         }
         case Namecall_Atom::resize: {
-            const int w = luaL_checkinteger(L, 2);
-            const int h = luaL_checkinteger(L, 3);
+            const auto w = lua::check<int>(L, 2);
+            const auto h = lua::check<int>(L, 3);
             check_sdl(L,SDL_SetWindowSize(window.get(), w, h));
             return 0;
         }
         case Namecall_Atom::move: {
-            const int x = luaL_checkinteger(L, 2);
-            const int y = luaL_checkinteger(L, 3);
+            const int x = lua::check<int>(L, 2);
+            const int y = lua::check<int>(L, 3);
             check_sdl(L, SDL_SetWindowPosition(window.get(), x, y));
             return 0;
         }
@@ -251,9 +251,21 @@ static auto renderer_namecall(lua_State* L) -> int {
             check_sdl(L, SDL_RenderFillRect(ptr, &to_tagged<Tag::Rect>(L, 2)));
         return 0;
         case Namecall_Atom::draw_point: {
-            const float x = static_cast<float>(luaL_checknumber(L, 2));
-            const float y = static_cast<float>(luaL_checknumber(L, 2));
+            auto x = lua::check<float>(L, 2);
+            auto y = lua::check<float>(L, 3);
             check_sdl(L, SDL_RenderPoint(ptr, x, y));
+            return 0;
+        }
+        case Namecall_Atom::clear: {
+            check_sdl(L, SDL_RenderClear(ptr));
+            return 0;
+        }
+        case Namecall_Atom::set_draw_color: {
+            auto r = lua::check<Uint8>(L, 2);
+            auto g = lua::check<Uint8>(L, 3);
+            auto b = lua::check<Uint8>(L, 4);
+            auto a = lua::opt<Uint8, SDL_ALPHA_OPAQUE>(L, 5);
+            check_sdl(L, SDL_SetRenderDrawColor(ptr, r, g, b, a));
             return 0;
         }
         default: break;
@@ -408,6 +420,12 @@ static auto state_index(lua_State* L) -> int {
         return 1;
     } else if (index == "mouse") {
         push_tagged(L, state.mouse);
+        return 1;
+    } else if (index == "window") {
+        push_tagged(L, state.window);
+        return 1;
+    } else if (index == "renderer") {
+        push_tagged(L, state.renderer);
         return 1;
     }
     lua::error(L, "invalid field '{}'", index);

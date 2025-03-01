@@ -17,20 +17,6 @@ declare class Color
     a: number
 end
 
-declare class Lou_Renderer
-    scale: number
-    color_scale: number
-    draw_color: Color
-    viewport: Rect
-    clip_rect: Rect
-    vsync_enabled: boolean
-    function draw_rect(self, rect: Rect): ()
-    function draw_point(self, point: Point): ()
-    function draw_line(self, from: Point, to: Point): ()
-    function draw_triangle(self, a: Point, b: Point, c: Point): ()
-    function draw_ellipse(self, center: Point, radius_x: number, radius_y: number): ()
-    function clear(self): ()
-end
 declare class Lou_Console
     print: <Tostring_Compatible_Args...>(self: Lou_Console, Tostring_Compatible_Args...) -> ()
     warn: <Tostring_Compatible_Args...>(self: Lou_Console, Tostring_Compatible_Args...) -> ()
@@ -38,17 +24,20 @@ declare class Lou_Console
 end
 
 declare class Lou_Window
-    x: number
-    y: number
-    w: number
-    h: number
-    opacity: number
-    border: boolean
+    function position(self): (number, number)
+    function size(self): (number, number)
+    function resize(self, width: number, height: number): ()
+    function move(self, x: number, y: number): ()
+end
+declare class Lou_Renderer
+    function draw_rect(self, rect: Rect): ()
+    function draw_point(self, x: number, y: number): ()
+    function draw_line(self, from: Point, to: Point): ()
+    function set_draw_color(self, r: number, g: number, b: number, a: number?): ()
+    function clear(self): ()
 end
 
 declare class Lou_Mouse
-    --x: number
-    --y: number
     function position(self): (number, number)
     function pressed(self, handler: (type: ('left'|'middle'|'right'), x: number, y: number)->()): ()
     function released(self, handler: (type: ('left'|'middle'|'right'), x: number, y: number)->()): ()
@@ -67,7 +56,7 @@ declare class Lou_State
     get_mouse: () -> Lou_Mouse
     keyboard: Lou_Keyboard
     console: Lou_Console
-    function on_draw(self, fn: ()->()): ()
+    function on_render(self, fn: ()->()): ()
     function on_update(self, fn: (delta_seconds: number)->()): ()
 end
 
