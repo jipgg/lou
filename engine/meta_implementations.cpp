@@ -9,11 +9,11 @@ constexpr auto Console = Tag::Lou_Console;
 constexpr auto Window = Tag::Lou_Window;
 constexpr auto Renderer = Tag::Lou_Renderer;
 template <Tag Val>
-[[noreturn]] static auto err_invalid_method(lua_State* L, int atom) {
+[[noreturn]] static auto err_invalid_method(lua_State* L, auto atom) {
     lua::error(L,
         "invalid method for {} -> {}",
         compile_time::enum_item<Val>().name,
-        compile_time::enum_item<Namecall_Atom>(atom).name
+        compile_time::enum_item<Namecall_Atom>(static_cast<int>(atom)).name
     );
 }
 template <Tag Val>
@@ -63,13 +63,21 @@ static auto point_tostring(lua_State* L) -> int {
     return 1;
 }
 static auto point_namecall(lua_State* L) -> int {
-
+    auto& self = to_tagged<Tag::Point>(L, 1);
+    auto [atom, name] = lua::namecall_atom<Namecall_Atom>(L);
+    switch (atom) {
+        case Namecall_Atom::as_tuple:
+            return lua::return_values(L, self.x, self.y);
+        default: break;
+    }
+    err_invalid_method<Tag::Point>(L, atom);
 }
 void Point::push_metatable(lua_State *L) {
     constexpr luaL_Reg meta[] = {
         {"__index", point_index},
         {"__newindex", point_newindex},
         {"__tostring", point_tostring},
+        {"__namecall", point_namecall},
         {nullptr, nullptr}
     };
     basic_push_metatable<Tag::Point>(L, meta);
@@ -114,6 +122,16 @@ static auto rect_tostring(lua_State* L) -> int {
     lua::push(L, "Rect: {{{}, {}, {}, {}}}", self.x, self.y, self.w, self.h);
     return 1;
 }
+static auto rect_namecall(lua_State* L) -> int {
+    auto& self = to_tagged<Tag::Rect>(L, 1);
+    auto [atom, name] = lua::namecall_atom<Namecall_Atom>(L);
+    switch (atom) {
+        case Namecall_Atom::as_tuple:
+            return lua::return_values(L, self.x, self.y, self.w, self.h);
+        default: break;
+    }
+    err_invalid_method<Tag::Rect>(L, atom);
+}
 
 void Rect::push_metatable(lua_State *L) {
     if (new_metatable<Tag::Rect>(L)) {
@@ -121,6 +139,7 @@ void Rect::push_metatable(lua_State *L) {
             {"__index", rect_index},
             {"__newindex", rect_newindex},
             {"__tostring", rect_tostring},
+            {"__namecall", rect_namecall},
             {nullptr, nullptr}
         };
         luaL_register(L, nullptr, meta);
@@ -170,12 +189,23 @@ static auto color_tostring(lua_State* L) -> int {
     lua::push(L, "Color: {{{}, {}, {}, {}}}", self.r, self.g, self.b, self.a);
     return 1;
 }
+static auto color_namecall(lua_State* L) -> int {
+    auto& self = to_tagged<Tag::Color>(L, 1);
+    auto [atom, name] = lua::namecall_atom<Namecall_Atom>(L);
+    switch (atom) {
+        case Namecall_Atom::as_tuple:
+            return lua::return_values(L, self.r, self.g, self.b, self.a);
+        default: break;
+    }
+    err_invalid_method<Tag::Color>(L, atom);
+}
 void Color::push_metatable(lua_State *L) {
     if (new_metatable<Tag::Color>(L)) {
         const luaL_Reg meta[] = {
             {"__index", color_index},
             {"__newindex", color_newindex},
             {"__tostring", color_tostring},
+            {"__namecall", color_namecall},
             {nullptr, nullptr}
         };
         luaL_register(L, nullptr, meta);
@@ -300,8 +330,7 @@ static auto renderer_namecall(lua_State* L) -> int {
             check_sdl(L, SDL_RenderFillRect(ptr, &to_tagged<Tag::Rect>(L, 2)));
         return 0;
         case Namecall_Atom::draw_point: {
-            auto x = lua::check<float>(L, 2);
-            auto y = lua::check<float>(L, 3);
+            auto [x, y] = lua::check_args<float, float>(L, 2);
             check_sdl(L, SDL_RenderPoint(ptr, x, y));
             return 0;
         }
@@ -309,13 +338,19 @@ static auto renderer_namecall(lua_State* L) -> int {
             check_sdl(L, SDL_RenderClear(ptr));
             return 0;
         }
+        case Namecall_Atom::draw_line: {
+            auto [x1, y1, x2, y2] = lua::check_args<float, float, float, float>(L, 2);
+        }
         case Namecall_Atom::set_draw_color: {
-            auto r = lua::check<Uint8>(L, 2);
-            auto g = lua::check<Uint8>(L, 3);
-            auto b = lua::check<Uint8>(L, 4);
+            auto [r, g, b] = lua::check_args<Uint8, Uint8, Uint8>(L, 2);
             auto a = lua::opt<Uint8, SDL_ALPHA_OPAQUE>(L, 5);
             check_sdl(L, SDL_SetRenderDrawColor(ptr, r, g, b, a));
             return 0;
+        }
+        case Namecall_Atom::get_draw_color: {
+            Uint8 r, g, b, a;
+            check_sdl(L, SDL_GetRenderDrawColor(ptr, &r, &g, &b, &a));
+            return lua::return_values(L, r, g, b, a);
         }
         default: break;
     }

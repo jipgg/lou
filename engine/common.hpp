@@ -232,6 +232,13 @@ public:
         state_ = nullptr;
     }
 };
+
+template <class As = int>
+auto namecall_atom(lua_State* L) -> std::pair<As, std::string_view> {
+    int atom;
+    auto namecall = lua_namecallatom(L, &atom);
+    return {static_cast<As>(atom), namecall};
+}
 template<class Ty>
 inline auto check_vector(lua_State* L, int idx) -> std::span<const float> {
     return std::span<const float>{luaL_checkvector(L, idx), LUA_VECTOR_SIZE};
@@ -316,10 +323,10 @@ auto check_userdata_tagged(lua_State* L, int idx, int tag) -> Ty& {
     return *static_cast<Ty*>(lua_touserdatatagged(L, idx, tag));
 }
 template <class Ty>
-concept Convertible_to_int = requires(Ty&& v) {
+concept Convertible_To_Int = requires(Ty&& v) {
     static_cast<int>(v);
 };
-template <class Ty, Convertible_to_int Int>
+template <class Ty, Convertible_To_Int Int>
 auto new_userdata_tagged(lua_State* L, Int tag) -> Ty& {
     return *static_cast<Ty*>(
         lua_newuserdatatagged(L, sizeof(Ty), static_cast<int>(tag))
@@ -384,6 +391,13 @@ constexpr auto check(lua_State* L, int idx) -> Ty {
     } else {
         static_assert(false, "unsupported type");
     } 
+}
+template <class ...Ty_Args>
+constexpr auto check_args(lua_State* L, int start = 1) -> std::tuple<Ty_Args...> {
+    auto make_tuple = [&L, &start]<size_t...Index>(std::index_sequence<Index...>) {
+        return std::make_tuple<Ty_Args...>(check<Ty_Args>(L, Index + start)...);
+    };
+    return make_tuple(std::index_sequence_for<Ty_Args...>{});
 }
 template <class Ty> consteval auto default_value() -> decltype(auto) {
     if constexpr (std::same_as<Ty, bool>) {

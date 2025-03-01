@@ -10,6 +10,7 @@ c:warn("im a variable")
 
 print(lou.keyboard)
 
+print(Color(1, 2, 3, 4):as_tuple())
 
 lou.keyboard:released(function(key: string)
     print(`key is '{key}'`)
@@ -28,11 +29,22 @@ lou.keyboard:released(function(key: string)
     end
 end)
 
+local angle = 0
 local my_rect = Rect(100, 100, 300, 300)
+local my_other_rect = Rect(300, 100, 300, 400)
+local color = Color(0x0, 0, 0x77)
+lou:on_update(function(delta_seconds: number)
+    angle += 2 * delta_seconds
+    my_other_rect.x = 300 + 200 * math.sin(angle)
+    my_other_rect.y = 300 + 200 * math.sin(angle * .9)
+    my_other_rect.w = 300 - 300 * math.cos(angle * .9)
+    my_other_rect.h = 300 + 300 * math.sin(angle * 1.1)
+end)
 lou:on_render(function()
     lou.renderer:set_draw_color(0xff, 0xff, 0xff)
     lou.renderer:draw_rect(my_rect)
-    warn(lou.mouse:position())
+    lou.renderer:set_draw_color(color:as_tuple())
+    lou.renderer:fill_rect(my_other_rect)
 end)
 lou.console:error(my_rect.x, my_rect.y)
 lou.console:print(my_rect)

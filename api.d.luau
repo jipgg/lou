@@ -46,6 +46,7 @@ declare class Lou_Window
 end
 declare class Lou_Renderer
     function draw_rect(self, rect: Rect): ()
+    function fill_rect(self, rect: Rect): ()
     function draw_point(self, x: number, y: number): ()
     function draw_line(self, from: Point, to: Point): ()
     function set_draw_color(self, r: number, g: number, b: number, a: number?): ()
