@@ -39,7 +39,7 @@ static void check_sdl(lua_State* L, bool result) {
 }
 // Point meta implementation
 static auto point_index(lua_State* L) -> int {
-    auto& self = to_object<Tag::Point>(L, 1);
+    auto& self = to_tagged<Tag::Point>(L, 1);
     const char initial = *luaL_checkstring(L, 2);
     switch (initial) {
         case 'x': lua::push(L, self.x); return 1;
@@ -48,7 +48,7 @@ static auto point_index(lua_State* L) -> int {
     lua::arg_error(L, 2, "invalid field");
 }
 static auto point_newindex(lua_State* L) -> int {
-    auto& self = to_object<Tag::Point>(L, 1);
+    auto& self = to_tagged<Tag::Point>(L, 1);
     const char initial = *luaL_checkstring(L, 2);
     const float val = static_cast<float>(luaL_checknumber(L, 3));
     switch (initial) {
@@ -58,7 +58,7 @@ static auto point_newindex(lua_State* L) -> int {
     lua::arg_error(L, 2, "invalid field");
 }
 static auto point_tostring(lua_State* L) -> int {
-    auto& self = to_object<Tag::Point>(L, 1);
+    auto& self = to_tagged<Tag::Point>(L, 1);
     lua::push(L, "Point: {{{}, {}}}", self.x, self.y);
     return 1;
 }
@@ -77,14 +77,14 @@ void Point::push_constructor(lua_State *L) {
             .x = static_cast<float>(luaL_optnumber(L, 1, 0)),
             .y = static_cast<float>(luaL_optnumber(L, 2, 0)),
         };
-        new_object<Tag::Point>(L) = std::move(self);
+        new_tagged<Tag::Point>(L) = std::move(self);
         return 1;
     };
     lua_pushcfunction(L, constructor, "Point");
 }
 // Rect meta implementation
 static auto rect_index(lua_State* L) -> int {
-    auto& rect = to_object<Tag::Rect>(L, 1);
+    auto& rect = to_tagged<Tag::Rect>(L, 1);
     const char initial = *luaL_checkstring(L, 2);
     switch (initial) {
         case 'x': lua::push(L, rect.x); return 1;
@@ -95,7 +95,7 @@ static auto rect_index(lua_State* L) -> int {
     lua::arg_error(L, 2, "invalid field");
 }
 static auto rect_newindex(lua_State* L) -> int {
-    auto& rect = to_object<Tag::Rect>(L, 1);
+    auto& rect = to_tagged<Tag::Rect>(L, 1);
     const char initial = *luaL_checkstring(L, 2);
     const float val = static_cast<float>(luaL_checknumber(L, 3));
     switch (initial) {
@@ -107,7 +107,7 @@ static auto rect_newindex(lua_State* L) -> int {
     lua::arg_error(L, 2, "invalid field");
 }
 static auto rect_tostring(lua_State* L) -> int {
-    auto& self = to_object<Tag::Rect>(L, 1);
+    auto& self = to_tagged<Tag::Rect>(L, 1);
     lua::push(L, "Rect: {{{}, {}, {}, {}}}", self.x, self.y, self.w, self.h);
     return 1;
 }
@@ -132,7 +132,7 @@ void Rect::push_constructor(lua_State *L) {
             .w = static_cast<float>(luaL_optnumber(L, 3, 0)),
             .h = static_cast<float>(luaL_optnumber(L, 4, 0)),
         };
-        new_object<Tag::Rect>(L) = std::move(rect);
+        new_tagged<Tag::Rect>(L) = std::move(rect);
         return 1;
     };
     lua_pushcfunction(L, constructor, "Rect");
@@ -140,7 +140,7 @@ void Rect::push_constructor(lua_State *L) {
 
 // Color meta implementation
 static auto color_index(lua_State* L) -> int {
-    auto& self = to_object<Tag::Color>(L, 1);
+    auto& self = to_tagged<Tag::Color>(L, 1);
     const char initial = *luaL_checkstring(L, 2);
     switch (initial) {
         case 'r': lua::push(L, self.r); return 1;
@@ -151,7 +151,7 @@ static auto color_index(lua_State* L) -> int {
     lua::arg_error(L, 2, "invalid field");
 }
 static auto color_newindex(lua_State* L) -> int {
-    auto& self = to_object<Tag::Color>(L, 1);
+    auto& self = to_tagged<Tag::Color>(L, 1);
     const char initial = *luaL_checkstring(L, 2);
     const uint8_t val = static_cast<uint8_t>(luaL_checkinteger(L, 3));
     switch (initial) {
@@ -163,7 +163,7 @@ static auto color_newindex(lua_State* L) -> int {
     lua::arg_error(L, 2, "invalid field");
 }
 static auto color_tostring(lua_State* L) -> int {
-    auto& self = to_object<Tag::Color>(L, 1);
+    auto& self = to_tagged<Tag::Color>(L, 1);
     lua::push(L, "Color: {{{}, {}, {}, {}}}", self.r, self.g, self.b, self.a);
     return 1;
 }
@@ -187,7 +187,7 @@ void Color::push_constructor(lua_State *L) {
             .b = static_cast<uint8_t>(luaL_optinteger(L, 3, 0)),
             .a = static_cast<uint8_t>(luaL_optinteger(L, 4, 0)),
         };
-        new_object<Tag::Color>(L) = std::move(self);
+        new_tagged<Tag::Color>(L) = std::move(self);
         return 1;
     };
     lua_pushcfunction(L, constructor, "Color");
@@ -195,7 +195,7 @@ void Color::push_constructor(lua_State *L) {
 // Lou_Window meta implementation
 
 static auto window_namecall(lua_State* L) -> int {
-    auto& window = to_object<Window>(L, 1);
+    auto& window = to_tagged<Window>(L, 1);
     int atom;
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
@@ -239,16 +239,16 @@ void Lou_Window::push_metatable(lua_State *L) {
 
 // Lou_Renderer meta implementation
 static auto renderer_namecall(lua_State* L) -> int {
-    auto& renderer = to_object<Renderer>(L, 1);
+    auto& renderer = to_tagged<Renderer>(L, 1);
     auto ptr = renderer.get();
     int atom;
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
         case Namecall_Atom::draw_rect:
-            check_sdl(L, SDL_RenderRect(ptr, &to_object<Tag::Rect>(L, 2)));
+            check_sdl(L, SDL_RenderRect(ptr, &to_tagged<Tag::Rect>(L, 2)));
         return 0;
         case Namecall_Atom::fill_rect:
-            check_sdl(L, SDL_RenderFillRect(ptr, &to_object<Tag::Rect>(L, 2)));
+            check_sdl(L, SDL_RenderFillRect(ptr, &to_tagged<Tag::Rect>(L, 2)));
         return 0;
         case Namecall_Atom::draw_point: {
             const float x = static_cast<float>(luaL_checknumber(L, 2));
@@ -269,7 +269,7 @@ void Lou_Renderer::push_metatable(lua_State *L) {
 }
 // Lou_Mouse meta implementation
 static auto mouse_index(lua_State* L) -> int {
-    auto& self = to_object<Mouse>(L, 1);
+    auto& self = to_tagged<Mouse>(L, 1);
     std::string_view key = luaL_checkstring(L, 2);
     // gotta watch out with this. if accessed directly with `lou.mouse.x`
     // it returns the a constant initial value because of sandboxing.
@@ -290,7 +290,7 @@ static auto mouse_index(lua_State* L) -> int {
     lua::arg_error(L, 2, "invalid field '{}'", key);
 }
 static auto mouse_namecall(lua_State* L) -> int {
-    auto& self = to_object<Mouse>(L, 1);
+    auto& self = to_tagged<Mouse>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
@@ -334,7 +334,7 @@ static auto keyboard_is_pressed(lua_State* L) -> int {
     return 1;
 }
 static auto keyboard_namecall(lua_State* L) -> int {
-    auto& self = to_object<Keyboard>(L, 1);
+    auto& self = to_tagged<Keyboard>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
@@ -363,7 +363,7 @@ void Lou_Keyboard::push_metatable(lua_State* L) {
 }
 // Lou_Console meta implementation
 static auto console_namecall(lua_State *L) -> int {
-    auto& self = to_object<Console>(L, 1);
+    auto& self = to_tagged<Console>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
@@ -395,30 +395,30 @@ auto Lou_Console::push_metatable(lua_State* L) -> void {
 }
 // Lou_State meta implementation
 static auto state_index(lua_State* L) -> int {
-    auto& state = to_object<State>(L, 1);
+    auto& state = to_tagged<State>(L, 1);
     std::string_view index = luaL_checkstring(L, 2);
     if (index == "console") {
         // no need to cache a lua_ref, cause it is a field in the global 'lou'.
         // when sandboxed this automatically resolves to 1 invocation.
         // Pretty cool. Only works with a global __index, however.
-        push_reference<Console>(L, state.console);
+        push_tagged(L, state.console);
         return 1;
     } else if (index == "keyboard") {
-        push_reference<Keyboard>(L, state.keyboard);
+        push_tagged(L, state.keyboard);
         return 1;
     } else if (index == "mouse") {
-        push_reference<Mouse>(L, state.mouse);
+        push_tagged(L, state.mouse);
         return 1;
     }
     lua::error(L, "invalid field '{}'", index);
 }
 static auto state_newindex(lua_State *L) -> int {
-    auto& state = to_object<State>(L, 1);
+    auto& state = to_tagged<State>(L, 1);
     std::string_view index = luaL_checkstring(L, 2);
     lua::error(L, "invalid field '{}'", index);
 }
 static auto state_namecall(lua_State *L) -> int {
-    auto& engine = to_object<State>(L, 1);
+    auto& engine = to_tagged<State>(L, 1);
     int atom{};
     lua_namecallatom(L, &atom);
     logger.log("atom is {}, {}", atom, compile_time::enum_item<Namecall_Atom>(atom).name);

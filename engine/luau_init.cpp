@@ -265,6 +265,24 @@ static auto init_meta(lua_State* L) -> void {
     Ty::push_metatable(L);
     lua_pop(L, 1);
 }
+static auto set_up_print_and_warm(lua_State* L, Lou_Console& console) -> void {
+    auto print = [](lua_State* L) -> int {
+        auto& console = to_tagged<Tag::Lou_Console>(L, lua_upvalueindex(1));
+        console.comment(lua::tuple_tostring(L));
+        return 0;
+    };
+    push_tagged(L, console);
+    lua_pushcclosure(L, print, "print", 1);
+    lua_setglobal(L, "print");
+    auto warn = [](lua_State* L) -> int {
+        auto& console = to_tagged<Tag::Lou_Console>(L, lua_upvalueindex(1));
+        console.warn(lua::tuple_tostring(L));
+        return 0;
+    };
+    push_tagged(L, console);
+    lua_pushcclosure(L, warn, "warn", 1);
+    lua_setglobal(L, "warn");
+}
 
 auto Lou_State::init_luau() -> void {
     owning.luau.reset(luaL_newstate());
@@ -294,7 +312,7 @@ auto Lou_State::init_luau() -> void {
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, nullptr, funcs);
     lua_pop(L, 1);
-    push_reference<Tag::Lou_State>(L, this);
+    push_tagged(L, *this);
     lua_setglobal(L, "lou");
     Rect::push_constructor(L);
     lua_setglobal(L, "Rect");
@@ -302,14 +320,7 @@ auto Lou_State::init_luau() -> void {
     lua_setglobal(L, "Color");
     Point::push_constructor(L);
     lua_setglobal(L, "Point");
-    auto print = [](lua_State* L) -> int {
-        auto& console = to_object<Tag::Lou_Console>(L, lua_upvalueindex(1));
-        console.comment(lua::tuple_tostring(L));
-        return 0;
-    };
-    push_reference<Tag::Lou_Console>(L, console);
-    lua_pushcclosure(L, print, "print", 1);
-    lua_setglobal(L, "print");
+    set_up_print_and_warm(L, console);
 
     luaL_sandbox(L);
 }

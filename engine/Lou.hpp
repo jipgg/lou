@@ -176,6 +176,7 @@ enum class Tag {
     #undef Generate_Tag_Enum
 };
 
+namespace detail {
 enum class Tag_Reference {
     #define Generate_Tag_Reference_Enum(item) item = LUA_UTAG_LIMIT - static_cast<int>(Tag::item),
     Tag_Enum_Item_Generator(Generate_Tag_Reference_Enum)
@@ -184,9 +185,11 @@ enum class Tag_Reference {
 #undef Tag_Enum_Item_Generator
 
 template <Tag Tag> struct Mapped_Type;
+template <class Ty> struct Mapped_Tag;
 
 #define Map_Type_To_Tag(TAG, TYPE)\
-template <> struct Mapped_Type<Tag::TAG> {using Type = TYPE;}
+template <> struct Mapped_Type<Tag::TAG> {using type = TYPE;};\
+template <> struct Mapped_Tag<TYPE> {static constexpr Tag value = Tag::TAG;}
 
 Map_Type_To_Tag(Point, SDL_FPoint);
 Map_Type_To_Tag(Rect, SDL_FRect);
@@ -210,13 +213,22 @@ requires std::is_integral_v<As>
 consteval auto tag_reference_cast() -> As {
     return static_cast<As>(LUA_UTAG_LIMIT - static_cast<int>(Val));
 }
+}//detail
+template <Tag Val>
+using Type_For = typename detail::Mapped_Type<Val>::type;
+
+template <class Ty>
+concept Not_A_Pointer = not std::is_pointer_v<Ty>;
+template <class Ty>
+constexpr Tag Tag_For = detail::Mapped_Tag<Ty>::value;
+
 template <Tag Val>
 auto get_metatable_name() -> const char* {
     constexpr auto v = compile_time::enum_info<Val>().name;
     static const std::string name{v};
     return name.c_str();
 }
-template <Tag_Reference Val>
+template <detail::Tag_Reference Val>
 auto get_metatable_name() -> decltype(auto) {
     return get_metatable_name<tag_cast<Val>()>();
 }
@@ -224,12 +236,12 @@ template <Tag Val>
 auto push_metatable(lua_State* L) -> void {
     luaL_getmetatable(L, get_metatable_name<Val>());
 }
-template <Tag_Reference Val>
+template <detail::Tag_Reference Val>
 auto push_metatable(lua_State *L) -> decltype(auto) {
     return push_metatable<tag_cast<Val>()>();
 }
-template <Tag Val, class Ty = Mapped_Type<Val>::Type>
-auto new_object(lua_State* L) -> Ty& {
+template <Tag Val, class Ty = Type_For<Val>>
+auto new_tagged(lua_State* L) -> Ty& {
     auto* p = static_cast<Ty*>(
         lua_newuserdatatagged(L, sizeof(Ty), static_cast<int>(Val))
     );
@@ -238,34 +250,41 @@ auto new_object(lua_State* L) -> Ty& {
     lua_setmetatable(L, -2);
     return *p;
 }
-template <Tag Val, class Ty = Mapped_Type<Val>::Type>
-auto push_reference(lua_State* L, Ty* ref) -> void {
+template <class Ty, Tag Val = Tag_For<Ty>>
+auto new_tagged(lua_State *L) -> decltype(auto) {
+    return new_tagged<Val>(L);
+}
+template <Tag Val, class Ty = Type_For<Val>>
+auto push_tagged(lua_State *L, Ty& ref) -> void {
     auto& p = *static_cast<Ty**>(
-        lua_newuserdatatagged(L, sizeof(Ty**), tag_reference_cast<Val, int>())
+        lua_newuserdatatagged(L, sizeof(Ty**), detail::tag_reference_cast<Val, int>())
     );
-    p = ref;
+    p = &ref;
     push_metatable<Val>(L);
     lua_setmetatable(L, -2);
 }
-template <Tag Val, class Ty = Mapped_Type<Val>::Type>
-auto push_reference(lua_State *L, Ty& ref) -> void {
-    push_reference<Val>(L, &ref);
+template <class Ty, Tag Val = Tag_For<Ty>>
+void push_tagged(lua_State* L, Ty& ref) {
+    push_tagged<Val>(L, ref);
 }
-template <Tag Val, class Ty = Mapped_Type<Val>::Type>
+template <Tag Val, class Ty = Type_For<Val>>
 constexpr auto is_tagged(lua_State* L, int idx) -> bool {
     const int tag = lua_userdatatag(L, idx);
     return tag == static_cast<int>(Val)
-        or tag == tag_reference_cast<Val, int>();
+        or tag == detail::tag_reference_cast<Val, int>();
 }
 
-template <Tag Val, class Ty = Mapped_Type<Val>::Type>
-constexpr auto to_object(lua_State* L, int idx) -> Ty& {
+template <Tag Val, class Ty = Type_For<Val>>
+constexpr auto to_tagged(lua_State* L, int idx) -> Ty& {
     const int tag = lua_userdatatag(L, idx);
     if (tag == static_cast<int>(Val)) {
         return *static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));
-    } else if (tag == tag_reference_cast<Val, int>()) {
-        return **static_cast<Ty**>(lua_touserdatatagged(L, idx, tag_reference_cast<Val, int>()));
+    } else if (tag == detail::tag_reference_cast<Val, int>()) {
+        return **static_cast<Ty**>(lua_touserdatatagged(L, idx, detail::tag_reference_cast<Val, int>()));
     }
     lua::type_error(L, idx, compile_time::enum_info<Val>().name);
 }
-
+template <class Ty, Tag Val = Tag_For<Ty>>
+constexpr auto to_tagged(lua_State* L, int idx) -> decltype(auto) {
+    return to_tagged<Val>(L, idx);
+}
