@@ -28,6 +28,26 @@ struct Point {
     static void push_metatable(lua_State* L);
 };
 
+struct Texture {
+    C_Owner_t<SDL_Texture> ptr{nullptr, SDL_DestroyTexture};
+    int width;
+    int height;
+    static void push_metatable(lua_State* L);
+};
+
+struct Font {
+    C_Owner_t<TTF_Font> ptr{nullptr, TTF_CloseFont};
+    auto open(const std::string& file, int font_size) -> std::expected<void, std::string> {
+        ptr.reset(TTF_OpenFont(file.c_str(), font_size));
+        if (not ptr) return std::unexpected(SDL_GetError());
+
+        return {};
+    };
+    static void push_metatable(lua_State* L);
+    static void push_constructor(lua_State* L);
+};
+
+
 struct Lou_Console {
     auto render() -> void;
     enum class Severity {
@@ -86,6 +106,25 @@ struct Lou_Renderer {
     constexpr auto get_text_engine() -> TTF_TextEngine* const {return owning.text_engine.get();}
     static void push_metatable(lua_State* L);
 };
+struct Lou_Texture {
+    SDL_Renderer* renderer;
+    auto render_text_blended(const Font& font, std::string_view text, SDL_Color color) -> std::expected<Texture, std::string> {
+        auto surface = C_Owner_t<SDL_Surface>(TTF_RenderText_Blended(
+            font.ptr.get(),
+            text.data(),
+            text.length(),
+            color
+        ), SDL_DestroySurface);
+        auto texture = SDL_CreateTextureFromSurface(renderer, surface.get());
+        if (not texture) return std::unexpected{SDL_GetError()};
+        return Texture{
+            .ptr{texture, SDL_DestroyTexture},
+            .width = surface->w,
+            .height = surface->h,
+        };
+    }
+    static void push_metatable(lua_State* L);
+};
 
 struct Lou_State {
     struct {
@@ -93,6 +132,7 @@ struct Lou_State {
     } owning;
     Lou_Window window;
     Lou_Renderer renderer;
+    Lou_Texture texture;
     Lou_Console console;
     Lou_Keyboard keyboard;
     Lou_Mouse mouse;
@@ -110,6 +150,7 @@ struct Lou_State {
         int width{800};
         int height{600};
         SDL_WindowFlags flags{SDL_WINDOW_RESIZABLE};
+        std::string script_entry_point{"game/init.luau"};
     };
     void init(Init_Info data);
     void init_luau();
@@ -120,6 +161,9 @@ struct Lou_State {
 };
 
 enum class Namecall_Atom: int16_t {
+    render_texture,
+    from_text,
+    draw,
     print,
     comment,
     error,
@@ -182,10 +226,12 @@ enum class Namecall_Atom: int16_t {
     X(Point)\
     X(Color)\
     X(Texture)\
+    X(Font)\
     X(Lou_Window)\
     X(Lou_Renderer)\
     X(Lou_Keyboard)\
     X(Lou_Mouse)\
+    X(Lou_Texture)\
     X(COMPILE_TIME_ENUM_SENTINEL)
 
 enum class Tag {
@@ -218,6 +264,9 @@ Map_Type_To_Tag(Lou_Keyboard, Lou_Keyboard);
 Map_Type_To_Tag(Lou_Mouse, Lou_Mouse);
 Map_Type_To_Tag(Lou_Window, Lou_Window);
 Map_Type_To_Tag(Lou_Renderer, Lou_Renderer);
+Map_Type_To_Tag(Texture, Texture);
+Map_Type_To_Tag(Font, Font);
+Map_Type_To_Tag(Lou_Texture, Lou_Texture);
 
 #undef Map_Type_To_Tag
 
@@ -258,19 +307,28 @@ template <detail::Tag_Reference Val>
 auto push_metatable(lua_State *L) -> decltype(auto) {
     return push_metatable<tag_cast<Val>()>();
 }
-template <Tag Val, class Ty = Type_For<Val>>
-auto new_tagged(lua_State* L) -> Ty& {
+template <Tag Val, class Ty = Type_For<Val>, class ...Ty_Args>
+requires std::constructible_from<Ty, Ty_Args...>
+auto make_tagged(lua_State* L, Ty_Args&&...args) -> Ty& {
     auto* p = static_cast<Ty*>(
         lua_newuserdatatagged(L, sizeof(Ty), static_cast<int>(Val))
     );
-    new (p) Ty{};
+    std::construct_at(p, std::forward<Ty_Args>(args)...);
     push_metatable<Val>(L);
     lua_setmetatable(L, -2);
     return *p;
 }
+template <class Ty, Tag Val = Tag_For<Ty>, class ...Ty_Args>
+auto make_tagged(lua_State* L, Ty_Args&&...args) -> decltype(auto) {
+    return make_tagged<Val, Ty>(L, std::forward<Ty_Args>(args)...);
+}
+template <Tag Val, class Ty = Type_For<Val>>
+auto new_tagged(lua_State* L) -> Ty& {
+    return make_tagged<Val, Ty>(L);
+}
 template <class Ty, Tag Val = Tag_For<Ty>>
 auto new_tagged(lua_State *L) -> decltype(auto) {
-    return new_tagged<Val>(L);
+    return make_tagged<Val, Ty>(L);
 }
 template <Tag Val, class Ty = Type_For<Val>>
 auto push_tagged(lua_State *L, Ty& ref) -> void {

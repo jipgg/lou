@@ -20,6 +20,15 @@ declare class Color
     a: number
     function as_tuple(self): (number, number, number, number)
 end
+export type Blend_Mode = 'none'|'mod'|'add'
+declare class Texture
+    w: number
+    h: number
+    blend_mode: Blend_Mode
+end
+declare class Font
+    font_size: number
+end
 
 declare class Lou_Console
     print: <Tostring_Compatible_Args...>(self: Lou_Console, Tostring_Compatible_Args...) -> ()
@@ -51,6 +60,7 @@ declare class Lou_Renderer
     function draw_line(self, from: Point, to: Point): ()
     function set_draw_color(self, r: number, g: number, b: number, a: number?): ()
     function clear(self): ()
+    function render_texture(self, texture: Texture, x_or_src_rect: number | Rect?, y_or_dst_rect: number | Rect): ()
 end
 
 declare class Lou_Mouse
@@ -65,7 +75,15 @@ declare class Lou_Keyboard
     function is_pressed(self, key: string): boolean
 end
 
+declare class Lou_Texture
+    function from_text(self, font: Font, text: string, fg_color: Color): Texture
+    function from_solid_color(self, solid_color: Color, w: number?, h: number?): Texture
+    function draw(self, fn: (w: number, h: number)->(), w: number, h: number): Texture
+end
+
+
 declare class Lou_State 
+    texture: Lou_Texture
     renderer: Lou_Renderer
     window: Lou_Window
     mouse: Lou_Mouse
@@ -80,3 +98,4 @@ declare lou: Lou_State
 declare function Rect(x: number?, y: number?, w: number?, h: number?): Rect
 declare function Point(x: number?, y: number?): Point
 declare function Color(r: number?, g: number?, b: number?, a: number?): Color
+declare function Font(file_path: string, font_size: number): Font

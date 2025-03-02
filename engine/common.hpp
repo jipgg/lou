@@ -300,13 +300,30 @@ inline void push(lua_State* L, int integer) {
 inline void push(lua_State* L, bool boolean) {
     lua_pushboolean(L, boolean);
 }
+inline void push(lua_State* L, lua_CFunction fn, const std::string& debug_name = "anonymous") {
+    lua_pushcfunction(L, fn, debug_name.c_str());
+}
+template <class Ty>
+concept Number_Compatible = requires {
+    {static_cast<Ty>(double{})} -> std::same_as<Ty>;
+};
+template <class Ty>
+concept String_Compatible = requires (const Ty& str) {
+    {str.data()} -> std::convertible_to<const char*>;
+    {str.size()} -> std::convertible_to<size_t>;
+};
 template <typename Ty>
-concept Has_Push_Overloaded = requires (lua_State* L, Ty&& v) {
+concept Has_Push_Overloaded = requires(lua_State* L, Ty&& v) {
     push(L, std::forward<Ty>(v));
 };
+template <typename ...Tys>
+concept Pushable_Parameter_Pack = requires(lua_State* L, Tys&&...args) {
+    push(L, args...);
+};
+
 template <Has_Push_Overloaded ...Ty_Args>
-int return_values(lua_State* L, Ty_Args...args) {
-    (push(L, args), ...);
+auto values(lua_State* L, Ty_Args...args) -> int {
+    (push(L, std::forward<Ty_Args>(args)), ...);
     return sizeof...(args);
 } 
 template <class Ty = void>
@@ -353,15 +370,6 @@ constexpr auto opt_number(lua_State* L, int idx) -> Ty {
     return static_cast<Ty>(luaL_optnumber(L, idx, Default));
 }
 */
-template <class Ty>
-concept Number_Compatible = requires {
-    {static_cast<Ty>(double{})} -> std::same_as<Ty>;
-};
-template <class Ty>
-concept String_Compatible = requires (const Ty& str) {
-    {str.data()} -> std::convertible_to<const char*>;
-    {str.size()} -> std::convertible_to<size_t>;
-};
 template <class Ty>
 constexpr auto to(lua_State* L, int idx) -> Ty {
     if constexpr (std::same_as<Ty, bool>) {

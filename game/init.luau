@@ -1,5 +1,9 @@
 print('Hello')
 
+local main_font = Font("resources/main.ttf", 100)
+local white = Color(0xff, 0xff, 0xff, 0xff)
+local hello_world = lou.texture:from_text(main_font, "Hello, world!", white)
+
 --console:warn("yoo")
 
 lou.console:warn("YOOOOOOOOOO")
@@ -45,6 +49,8 @@ lou:on_render(function()
     lou.renderer:draw_rect(my_rect)
     lou.renderer:set_draw_color(color:as_tuple())
     lou.renderer:fill_rect(my_other_rect)
+    --lou.renderer:render_texture(hello_world, Rect(100, 100, 100, 100))
+    lou.renderer:render_texture(hello_world, 200, 100)
 end)
 lou.console:error(my_rect.x, my_rect.y)
 lou.console:print(my_rect)

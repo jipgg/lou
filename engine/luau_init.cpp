@@ -308,6 +308,9 @@ auto Lou_State::init_luau() -> void {
     init_meta<Lou_Mouse>(L);
     init_meta<Lou_Window>(L);
     init_meta<Lou_Renderer>(L);
+    init_meta<Font>(L);
+    init_meta<Texture>(L);
+    init_meta<Lou_Texture>(L);
 
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, nullptr, funcs);
@@ -320,6 +323,8 @@ auto Lou_State::init_luau() -> void {
     lua_setglobal(L, "Color");
     Point::push_constructor(L);
     lua_setglobal(L, "Point");
+    Font::push_constructor(L);
+    lua_setglobal(L, "Font");
     set_up_print_and_warm(L, console);
 
     luaL_sandbox(L);

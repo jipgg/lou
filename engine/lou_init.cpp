@@ -36,12 +36,14 @@ void Lou_State::init(Init_Info info) {
     io.FontGlobalScale = 2;
     //ImGui::GetStyle().ScaleAllSizes(5);
     renderer.owning.text_engine.reset(TTF_CreateRendererTextEngine(renderer.get()));
+    texture.renderer = renderer.get();
     //auto font = TTF_OpenFont("resources/main.ttf", 60);
     init_luau();
-    fs::path path{"game/init.luau"};
+    fs::path path{info.script_entry_point};
     std::ifstream file{path};
     if (!file.is_open()) {
         console.error(std::format("failed to open '{}'", path.string()));
+        return;
     }
     std::string line, contents;
     while (std::getline(file, line)) contents.append(line + '\n');
@@ -53,6 +55,7 @@ void Lou_State::init(Init_Info info) {
     }
 }
 
+
 auto main(int argc, char** argv) -> int {
     Lou_State state;
     state.init({
@@ -60,6 +63,7 @@ auto main(int argc, char** argv) -> int {
         .width = 1920,
         .height = 1080,
         .flags = SDL_WINDOW_RESIZABLE,
+        .script_entry_point = argc > 1 ? argv[1] : "game/init.luau",
     });
     while(state.running) {
         state.update();
