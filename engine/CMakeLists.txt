@@ -9,6 +9,7 @@ add_executable(lou_engine WIN32
 target_link_libraries(lou_engine PRIVATE
     SDL3::SDL3
     SDL3_ttf::SDL3_ttf
+    SDL3_image::SDL3_image
     Luau.VM
     Luau.Common
     Luau.Config

@@ -3,6 +3,7 @@ CompileFlags:
     # sdl
     - "-I../extern/SDL/include"
     - "-I../extern/SDL_ttf/include"
+    - "-I../extern/SDL_image/include"
     # luau
     - "-I../extern/Luau/VM/include"
     - "-I../extern/Luau/Compiler/include"

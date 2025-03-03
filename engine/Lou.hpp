@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <SDL3_image/SDL_image.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_sdlrenderer3.h>
 #include <imgui.h>
@@ -30,14 +31,13 @@ struct Point {
 
 struct Texture {
     C_Owner_t<SDL_Texture> ptr{nullptr, SDL_DestroyTexture};
-    int width;
-    int height;
+    lua::Ref cached_color_ref;
     static void push_metatable(lua_State* L);
 };
 
 struct Font {
     C_Owner_t<TTF_Font> ptr{nullptr, TTF_CloseFont};
-    auto open(const std::string& file, int font_size) -> std::expected<void, std::string> {
+    auto open(const std::string& file, float font_size) -> std::expected<void, std::string> {
         ptr.reset(TTF_OpenFont(file.c_str(), font_size));
         if (not ptr) return std::unexpected(SDL_GetError());
 
@@ -83,9 +83,9 @@ struct Lou_Keyboard {
     static void push_metatable(lua_State* L);
 };
 struct Lou_Mouse {
-    lua::Callback_List<const std::string&, int, int> pressed;
-    lua::Callback_List<const std::string&, int, int> released;
-    lua::Callback_List<int, int> moved;
+    lua::Callback_List<const std::string&, float, float> pressed;
+    lua::Callback_List<const std::string&, float, float> released;
+    lua::Callback_List<float, float> moved;
     static void push_metatable(lua_State* L);
 };
 
@@ -119,8 +119,13 @@ struct Lou_Texture {
         if (not texture) return std::unexpected{SDL_GetError()};
         return Texture{
             .ptr{texture, SDL_DestroyTexture},
-            .width = surface->w,
-            .height = surface->h,
+        };
+    }
+    auto load_image(const char* file) -> std::expected<Texture, std::string> {
+        auto texture = IMG_LoadTexture(renderer, file);
+        if (not texture) return std::unexpected(SDL_GetError());
+        return Texture{
+            .ptr{texture, SDL_DestroyTexture},
         };
     }
     static void push_metatable(lua_State* L);
@@ -161,6 +166,7 @@ struct Lou_State {
 };
 
 enum class Namecall_Atom: int16_t {
+    load_image,
     render_texture,
     from_text,
     draw,

@@ -21,10 +21,12 @@ declare class Color
     function as_tuple(self): (number, number, number, number)
 end
 export type Blend_Mode = 'none'|'mod'|'add'
+export type Scale_Mode = 'linear'|'nearest'
 declare class Texture
-    w: number
-    h: number
+    function size(self): (number, number)
+    color: Color
     blend_mode: Blend_Mode
+    scale_mode: Scale_Mode 
 end
 declare class Font
     font_size: number

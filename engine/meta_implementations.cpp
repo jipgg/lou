@@ -47,6 +47,28 @@ static void check_sdl(lua_State* L, bool result) {
     if (result) return;
     lua::error(L, SDL_GetError());
 }
+constexpr SDL_BlendMode string_to_blend_mode(const std::string_view str) {
+    if (str == "none") return SDL_BLENDMODE_NONE;
+    else if (str == "add") return SDL_BLENDMODE_ADD;
+    else if (str == "add premultiplied") return SDL_BLENDMODE_ADD_PREMULTIPLIED;
+    else if (str == "blend") return SDL_BLENDMODE_BLEND;
+    else if (str == "blend premultiplied") return SDL_BLENDMODE_BLEND_PREMULTIPLIED;
+    else if (str == "mod") return SDL_BLENDMODE_MOD;
+    else if (str == "mul") return SDL_BLENDMODE_MUL;
+    else return SDL_BLENDMODE_INVALID;
+}
+constexpr const char* blend_mode_to_string(SDL_BlendMode bm) {
+    switch (bm) {
+        case SDL_BLENDMODE_NONE: return "none";
+        case SDL_BLENDMODE_ADD: return "add";
+        case SDL_BLENDMODE_ADD_PREMULTIPLIED: return "add premultiplied";
+        case SDL_BLENDMODE_BLEND: return "blend pemultiplied";
+        case SDL_BLENDMODE_BLEND_PREMULTIPLIED: return "blend premultiplied";
+        case SDL_BLENDMODE_MOD: return "mod";
+        case SDL_BLENDMODE_MUL: return "mul";
+        default: return "invalid";
+    }
+}
 // Point meta implementation
 static auto point_index(lua_State* L) -> int {
     auto& self = to_tagged<Tag::Point>(L, 1);
@@ -222,14 +244,14 @@ void Color::push_metatable(lua_State *L) {
     }
 }
 void Color::push_constructor(lua_State *L) {
-    auto constructor = [](auto L) {
+    auto constructor = [](auto L) -> int {
         SDL_Color self{
-            .r = lua::opt<uint8_t>(L, 1),
-            .g = lua::opt<uint8_t>(L, 2),
-            .b = lua::opt<uint8_t>(L, 3),
-            .a = lua::opt<uint8_t, 0xff>(L, 4),
+            .r = lua::opt<Uint8>(L, 1),
+            .g = lua::opt<Uint8>(L, 2),
+            .b = lua::opt<Uint8>(L, 3),
+            .a = lua::opt<Uint8, 0xff>(L, 4),
         };
-        new_tagged<Tag::Color>(L) = std::move(self);
+        make_tagged<Tag::Color>(L, std::move(self));
         return Value;
     };
     lua_pushcfunction(L, constructor, "Color");
@@ -243,7 +265,7 @@ void Font::push_metatable(lua_State *L) {
 }
 void Font::push_constructor(lua_State* L) {
     auto constructor = [](lua_State* L) -> int {
-        auto [file, size] = lua::check_args<const char*, int>(L);
+        auto [file, size] = lua::check_args<const char*, float>(L);
         Font font;
         font.ptr.reset(TTF_OpenFont(file, size));
         check_sdl(L, font.ptr != nullptr);
@@ -256,8 +278,8 @@ static auto texture_index(lua_State* L) -> int {
     auto& self = to_tagged<Texture>(L, 1);
     auto initial = lua::check<char>(L, 2);
     switch (initial) {
-        case 'w': return lua::values(L, self.width);
-        case 'h': return lua::values(L, self.height);
+        case 'c': {
+        }
     }
     lua::arg_error(L, 2, "invalid index");
 }
@@ -284,6 +306,12 @@ static auto lou_texture_namecall(lua_State* L) -> int {
             auto r = self.render_text_blended(font, text, color);
             if (!r) lua::error(L, r.error());
             make_tagged<Texture>(L, std::move(r.value()));
+            return Value;
+        }
+        case Namecall_Atom::load_image: {
+            auto texture = self.load_image(lua::check<const char*>(L, 2));
+            if (!texture) lua::error(L, texture.error());
+            make_tagged<Texture>(L, std::move(texture.value()));
             return Value;
         }
         default: break;
@@ -420,7 +448,9 @@ static auto renderer_namecall(lua_State* L) -> int {
             auto& texture = to_tagged<Texture>(L, 2);
             if (lua_isnumber(L, 3)) {
                 auto [x, y] = lua::check_args<float, float>(L, 3);
-                SDL_FRect rect{x, y, float(texture.width), float(texture.height)};
+                float w, h;
+                check_sdl(L, SDL_GetTextureSize(texture.ptr.get(), &w, &h));
+                SDL_FRect rect{x, y, w, h};
                 check_sdl(L, SDL_RenderTexture(ptr, texture.ptr.get(), nullptr, &rect));
                 return None;
             } else {

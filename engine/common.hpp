@@ -294,6 +294,9 @@ inline void push(lua_State* L, const std::filesystem::path& string) {
 inline void push(lua_State* L, double number) {
     lua_pushnumber(L, number);
 }
+inline void push(lua_State* L, float number) {
+    lua_pushnumber(L, static_cast<double>(number));
+}
 inline void push(lua_State* L, int integer) {
     lua_pushinteger(L, integer);
 }
@@ -392,7 +395,7 @@ constexpr auto check(lua_State* L, int idx) -> Ty {
     } else if constexpr (std::same_as<Ty, char>) {
         return *luaL_checkstring(L, idx);
     } else if constexpr (Number_Compatible<Ty>) {
-        return luaL_checknumber(L, idx);
+        return static_cast<Ty>(luaL_checknumber(L, idx));
     } else if constexpr (String_Compatible<Ty>
         or std::same_as<Ty, const char*>) {
         return luaL_checkstring(L, idx);
@@ -424,7 +427,7 @@ constexpr auto opt(lua_State* L, int idx) -> Ty {
     if constexpr (std::same_as<Ty, bool>) {
         return luaL_optboolean(L, idx, Default);
     } else if constexpr (Number_Compatible<Ty>) {
-        return luaL_optnumber(L, idx, Default);
+        return static_cast<Ty>(luaL_optnumber(L, idx, Default));
     } else if constexpr (String_Compatible<Ty>
         or std::same_as<Ty, const char*>) {
         return luaL_optstring(L, idx, Default);
