@@ -274,6 +274,7 @@ void Font::push_constructor(lua_State* L) {
     };
     lua_pushcfunction(L, constructor, "Font");
 }
+// Texture meta implementation
 static auto texture_index(lua_State* L) -> int {
     auto& self = to_tagged<Texture>(L, 1);
     auto initial = lua::check<char>(L, 2);
@@ -283,14 +284,54 @@ static auto texture_index(lua_State* L) -> int {
     }
     lua::arg_error(L, 2, "invalid index");
 }
+static auto texture_namecall(lua_State* L) -> int {
+    auto& self = to_tagged<Texture>(L, 1);
+    auto renderer = SDL_GetRendererFromTexture(self.get());
+    if (!renderer) lua::error(L, SDL_GetError());
+    auto [atom, name] = lua::namecall_atom<Namecall_Atom>(L);
+    switch (atom) {
+        case Namecall_Atom::render: {
+            if (lua_isnumber(L, 2)) {
+                auto rect = self.source_rect();
+                if (!rect) lua::error(L, rect.error());
+                auto [x, y] = lua::check_args<float, float>(L, 2);
+                rect->x = x;
+                rect->y = y;
+                rect->w = static_cast<float>(luaL_optnumber(L, 4, rect->w));
+                rect->h = static_cast<float>(luaL_optnumber(L, 5, rect->h));
+                check_sdl(L, SDL_RenderTexture(renderer, self.get(), nullptr, &rect.value()));
+                return None;
+            } else if (is_tagged<Tag::Rect>(L, 2)) {
+                auto dst_rect = to_tagged<Tag::Rect>(L, 2);
+                if (lua_isnumber(L, 3)) {
+                    auto angle = lua::check<double>(L, 3);
+                    auto center = to_tagged_if<Tag::Point>(L, 4);
+                    auto src_rect = to_tagged_if<Tag::Rect>(L, 5);
+                    check_sdl(L, SDL_RenderTextureRotated(renderer, self.get(), src_rect, &dst_rect, angle, center, SDL_FLIP_NONE));
+                    return None;
+                }
+                auto src_rect = to_tagged_if<Tag::Rect>(L, 3);
+                check_sdl(L, SDL_RenderTexture(renderer, self.get(), src_rect, &dst_rect));
+                return None;
+            }
+        }
+        case Namecall_Atom::render_rotated: {
+            return None;
+        }
+        default: break;
+    }
+    err_invalid_method<Tag::Texture>(L, atom);
+}
 void Texture::push_metatable(lua_State *L) {
     constexpr auto tag = Tag::Texture;
     if (new_metatable<tag>(L)) {
         set_destructor<tag>(L);
         const luaL_Reg meta[] = {
             {"__index", texture_index},
+            {"__namecall", texture_namecall},
             {nullptr, nullptr}
         };
+        luaL_register(L, nullptr, meta);
         set_type_metamethod<tag>(L);
     }
 }

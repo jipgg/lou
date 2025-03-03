@@ -27,6 +27,9 @@ declare class Texture
     color: Color
     blend_mode: Blend_Mode
     scale_mode: Scale_Mode 
+    render: ((self: Texture, x: number, y: number, w: number?, h: number?) -> ())
+        & ((self: Texture, dest: Rect, src: Rect?) -> ())
+        & ((self: Texture, dst: Rect, angle: number, center: Point?, src: Rect?) -> ())
 end
 declare class Font
     font_size: number
@@ -62,7 +65,8 @@ declare class Lou_Renderer
     function draw_line(self, from: Point, to: Point): ()
     function set_draw_color(self, r: number, g: number, b: number, a: number?): ()
     function clear(self): ()
-    function render_texture(self, texture: Texture, x_or_src_rect: number | Rect?, y_or_dst_rect: number | Rect): ()
+    render_texture: ((self: Lou_Renderer, texture: Texture, x: number, y: number) -> ())
+        & ((self: Lou_Renderer, texture: Texture, dst: Rect, src: Rect?) -> ())
 end
 
 declare class Lou_Mouse
@@ -81,6 +85,7 @@ declare class Lou_Texture
     function from_text(self, font: Font, text: string, fg_color: Color): Texture
     function from_solid_color(self, solid_color: Color, w: number?, h: number?): Texture
     function draw(self, fn: (w: number, h: number)->(), w: number, h: number): Texture
+    function load_image(self, file: string): Texture
 end
 
 

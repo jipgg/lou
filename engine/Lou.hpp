@@ -33,6 +33,16 @@ struct Texture {
     C_Owner_t<SDL_Texture> ptr{nullptr, SDL_DestroyTexture};
     lua::Ref cached_color_ref;
     static void push_metatable(lua_State* L);
+    auto source_rect() -> std::expected<SDL_FRect, std::string> const {
+        float w, h;
+        if (!SDL_GetTextureSize(ptr.get(), &w, &h)) {
+            return std::unexpected(SDL_GetError());
+        } 
+        return SDL_FRect{0, 0, w, h};
+    }
+    constexpr auto get() -> SDL_Texture* const {
+        return ptr.get();
+    }
 };
 
 struct Font {
@@ -166,6 +176,9 @@ struct Lou_State {
 };
 
 enum class Namecall_Atom: int16_t {
+    load,
+    render,
+    render_rotated,
     load_image,
     render_texture,
     from_text,
@@ -369,4 +382,19 @@ constexpr auto to_tagged(lua_State* L, int idx) -> Ty& {
 template <class Ty, Tag Val = Tag_For<Ty>>
 constexpr auto to_tagged(lua_State* L, int idx) -> decltype(auto) {
     return to_tagged<Val>(L, idx);
+}
+
+template <Tag Val, class Ty = Type_For<Val>>
+constexpr auto to_tagged_if(lua_State* L, int idx) -> Ty* {
+    const int tag = lua_userdatatag(L, idx);
+    if (tag == static_cast<int>(Val)) {
+        return static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));
+    } else if (tag == detail::tag_reference_cast<Val, int>()) {
+        return *static_cast<Ty**>(lua_touserdatatagged(L, idx, detail::tag_reference_cast<Val, int>()));
+    }
+    return nullptr;
+}
+template <class Ty, Tag Val = Tag_For<Ty>>
+constexpr auto to_tagged_if(lua_State* L, int idx) -> decltype(auto) {
+    return to_tagged_if<Val>(L, idx);
 }

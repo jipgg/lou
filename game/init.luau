@@ -3,6 +3,7 @@ print('Hello')
 local main_font = Font("resources/main.ttf", 100)
 local white = Color(0xff, 0xff, 0xff, 0xff)
 local hello_world = lou.texture:from_text(main_font, "Hello, world!", white)
+local luau_logo = lou.texture:load_image("resources/Luau_Logo.png")
 
 --console:warn("yoo")
 
@@ -11,6 +12,8 @@ lou.console:warn(`{lou}, {lou.console}`)
 
 local c = lou.console
 c:warn("im a variable")
+
+luau_logo:render(100, 100)
 
 print(lou.keyboard)
 
@@ -50,7 +53,9 @@ lou:on_render(function()
     lou.renderer:set_draw_color(color:as_tuple())
     lou.renderer:fill_rect(my_other_rect)
     --lou.renderer:render_texture(hello_world, Rect(100, 100, 100, 100))
-    lou.renderer:render_texture(hello_world, 200, 100)
+    hello_world:render(200, 200)
+    --lou.renderer:render_texture(luau_logo, Rect(1200, 100, 200, 200))
+    luau_logo:render(Rect(100, 100, 200, 200), math.deg(angle))
 end)
 lou.console:error(my_rect.x, my_rect.y)
 lou.console:print(my_rect)
