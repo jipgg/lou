@@ -4,6 +4,7 @@ local main_font = Font("resources/main.ttf", 100)
 local white = Color(0xff, 0xff, 0xff, 0xff)
 local hello_world = lou.texture:from_text(main_font, "Hello, world!", white)
 local luau_logo = lou.texture:load_image("resources/Luau_Logo.png")
+local e = V2(100, 100)
 
 --console:warn("yoo")
 
@@ -13,11 +14,8 @@ lou.console:warn(`{lou}, {lou.console}`)
 local c = lou.console
 c:warn("im a variable")
 
-luau_logo:render(100, 100)
-
 print(lou.keyboard)
 
-print(Color(1, 2, 3, 4):as_tuple())
 
 lou.keyboard:released(function(key: string)
     print(`key is '{key}'`)
@@ -40,6 +38,7 @@ local angle = 0
 local my_rect = Rect(100, 100, 300, 300)
 local my_other_rect = Rect(300, 100, 300, 400)
 local color = Color(0x0, 0, 0x77)
+
 lou:on_update(function(delta_seconds: number)
     angle += 2 * delta_seconds
     my_other_rect.x = 300 + 200 * math.sin(angle)
@@ -60,7 +59,6 @@ end)
 lou.console:error(my_rect.x, my_rect.y)
 lou.console:print(my_rect)
 lou.console:print(Color(0xff, 0xff, 0xff, 0xff))
-lou.console:print(Point(2, 1))
 
 -- local con = lou:get_console()
 -- con:warn(typeof(lou))

@@ -3,6 +3,7 @@ add_subdirectory(Luau)
 add_subdirectory(SDL)
 add_subdirectory(SDL_ttf)
 add_subdirectory(SDL_image)
+add_subdirectory(blaze)
 
 target_compile_definitions(Luau.VM PUBLIC
     LUA_UTAG_LIMIT=255

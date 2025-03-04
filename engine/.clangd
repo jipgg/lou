@@ -15,3 +15,5 @@ CompileFlags:
     #imgui
     - "-I../extern/imgui"
     - "-I../extern/imgui/backends"
+    #blaze
+    - "-I../extern/blaze"

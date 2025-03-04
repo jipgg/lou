@@ -7,10 +7,17 @@ declare class Rect
     h: number
     function as_tuple(self): (number, number, number, number)
 end
-declare class Point
+declare class V2
     x: number
     y: number
     function as_tuple(self): (number, number)
+    function __add(self, other: V2): V2
+    function __sub(self, other: V2): V2
+    function __mul(self, other: V2 | number): V2
+    function dot(self, other: V2): number
+    function normalized(self): V2
+    function squared_length(self): number
+    function length(self): number
 end
 
 declare class Color
@@ -29,7 +36,7 @@ declare class Texture
     scale_mode: Scale_Mode 
     render: ((self: Texture, x: number, y: number, w: number?, h: number?) -> ())
         & ((self: Texture, dest: Rect, src: Rect?) -> ())
-        & ((self: Texture, dst: Rect, angle: number, center: Point?, src: Rect?) -> ())
+        & ((self: Texture, dst: Rect, angle: number, center: V2?, src: Rect?) -> ())
 end
 declare class Font
     font_size: number
@@ -56,13 +63,12 @@ declare class Lou_Window
     function enable_fullscreen(self, fullscreen: boolean): ()
     function size_in_pixels(self): (number, number)
     function aspect_ratio(self): (number, number)
-
 end
 declare class Lou_Renderer
     function draw_rect(self, rect: Rect): ()
     function fill_rect(self, rect: Rect): ()
     function draw_point(self, x: number, y: number): ()
-    function draw_line(self, from: Point, to: Point): ()
+    function draw_line(self, x1: number, y1: number, x2: number, y2: number): ()
     function set_draw_color(self, r: number, g: number, b: number, a: number?): ()
     function clear(self): ()
     render_texture: ((self: Lou_Renderer, texture: Texture, x: number, y: number) -> ())
@@ -88,7 +94,6 @@ declare class Lou_Texture
     function load_image(self, file: string): Texture
 end
 
-
 declare class Lou_State 
     texture: Lou_Texture
     renderer: Lou_Renderer
@@ -103,6 +108,6 @@ end
 
 declare lou: Lou_State 
 declare function Rect(x: number?, y: number?, w: number?, h: number?): Rect
-declare function Point(x: number?, y: number?): Point
+declare function V2(x: number?, y: number?): V2
 declare function Color(r: number?, g: number?, b: number?, a: number?): Color
 declare function Font(file_path: string, font_size: number): Font

@@ -13,3 +13,6 @@
 [submodule "extern/SDL_image"]
 	path = extern/SDL_image
 	url = https://github.com/libsdl-org/SDL_image
+[submodule "extern/blaze"]
+	path = extern/blaze
+	url = https://bitbucket.org/blaze-lib/blaze/src/master/

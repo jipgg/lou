@@ -69,9 +69,13 @@ constexpr const char* blend_mode_to_string(SDL_BlendMode bm) {
         default: return "invalid";
     }
 }
-// Point meta implementation
-static auto point_index(lua_State* L) -> int {
-    auto& self = to_tagged<Tag::Point>(L, 1);
+// V2 meta implementation
+static auto v2_call(lua_State* L) -> int {
+    const auto& self = to_tagged<Tag::V2>(L, 1);
+    return lua::values(L, self.x, self.y);
+}
+static auto v2_index(lua_State* L) -> int {
+    auto& self = to_tagged<Tag::V2>(L, 1);
     const char initial = *lua::check<const char*>(L, 2);
     switch (initial) {
         case 'x': return lua::values(L, self.x);
@@ -79,8 +83,8 @@ static auto point_index(lua_State* L) -> int {
     }
     lua::arg_error(L, 2, "invalid field");
 }
-static auto point_newindex(lua_State* L) -> int {
-    auto& self = to_tagged<Tag::Point>(L, 1);
+static auto v2_newindex(lua_State* L) -> int {
+    auto& self = to_tagged<Tag::V2>(L, 1);
     const auto initial = *lua::check<const char*>(L, 2);
     const auto val = lua::check<float>(L, 3);
     switch (initial) {
@@ -89,42 +93,95 @@ static auto point_newindex(lua_State* L) -> int {
     }
     lua::arg_error(L, 2, "invalid field");
 }
-static auto point_tostring(lua_State* L) -> int {
-    auto& self = to_tagged<Tag::Point>(L, 1);
-    return lua::values(L, std::format("Point: {{{}, {}}}", self.x, self.y));
+static auto v2_tostring(lua_State* L) -> int {
+    auto& self = to_tagged<Tag::V2>(L, 1);
+    return lua::values(L, std::format("V2{{{}, {}}}", self.x, self.y));
 }
-static auto point_namecall(lua_State* L) -> int {
-    auto& self = to_tagged<Tag::Point>(L, 1);
+static auto v2_add(lua_State* L) -> int {
+    auto& self = to_tagged<Tag::V2>(L, 1);
+    auto& other = to_tagged<Tag::V2>(L, 2);
+    make_tagged<Tag::V2>(L, self.x + other.x, self.y + other.y);
+    return Value;
+}
+static auto v2_sub(lua_State* L) -> int {
+    auto& self = to_tagged<Tag::V2>(L, 1);
+    auto& other = to_tagged<Tag::V2>(L, 2);
+    make_tagged<Tag::V2>(L, self.x - other.x, self.y - other.y);
+    return Value;
+}
+static auto v2_mul(lua_State* L) -> int {
+    auto a_opt = to_tagged_if<Tag::V2>(L, 1);
+    auto b_opt = to_tagged_if<Tag::V2>(L, 2);
+    if (a_opt and b_opt) {
+        make_tagged<Tag::V2>(L,a_opt->x * b_opt->x, a_opt->y * b_opt->y);
+        return Value;
+    }
+    const int num_idx = a_opt ? 2 : 1;
+    const auto& v = a_opt ? *a_opt : *b_opt;
+    auto scalar = lua::check<float>(L, num_idx);
+    make_tagged<Tag::V2>(L, v.x * scalar, v.y * scalar);
+    return Value;
+}
+static auto v2_namecall(lua_State* L) -> int {
+    auto& self = to_tagged<Tag::V2>(L, 1);
     auto [atom, name] = lua::namecall_atom<Namecall_Atom>(L);
+    auto vec = [](const auto& pt) {
+        return blaze::StaticVector{pt.x, pt.y};
+    };
     switch (atom) {
         case Namecall_Atom::as_tuple:
             return lua::values(L, self.x, self.y);
+        case Namecall_Atom::dot: {
+            const auto& other = to_tagged<Tag::V2>(L, 2);
+            return lua::values(L, blaze::dot(vec(self), vec(other)));
+        }
+        case Namecall_Atom::length: {
+            auto length = blaze::length(vec(self));
+            return lua::values(L, length);
+        }
+        case Namecall_Atom::squared_length: {
+            auto sl = blaze::sqrLength(vec(self));
+            return lua::values(L, sl);
+        }
+        case Namecall_Atom::normalized: {
+            auto unit = blaze::normalize(vec(self));
+            make_tagged<Tag::V2>(L, unit[0], unit[1]);
+            return Value;
+        }
         default: break;
     }
-    err_invalid_method<Tag::Point>(L, atom);
+    err_invalid_method<Tag::V2>(L, atom);
 }
-void Point::push_metatable(lua_State *L) {
+void V2::push_metatable(lua_State *L) {
     constexpr luaL_Reg meta[] = {
-        {"__index", point_index},
-        {"__newindex", point_newindex},
-        {"__tostring", point_tostring},
-        {"__namecall", point_namecall},
+        {"__index", v2_index},
+        {"__newindex", v2_newindex},
+        {"__add", v2_add},
+        {"__sub", v2_sub},
+        {"__mul", v2_mul},
+        {"__tostring", v2_tostring},
+        {"__namecall", v2_namecall},
+        {"__call", v2_call},
         {nullptr, nullptr}
     };
-    basic_push_metatable<Tag::Point>(L, meta);
+    basic_push_metatable<Tag::V2>(L, meta);
 }
-void Point::push_constructor(lua_State *L) {
+void V2::push_constructor(lua_State *L) {
     auto constructor = [](auto L) {
         SDL_FPoint self{
             .x = lua::opt<float>(L, 1),
             .y = lua::opt<float>(L, 2),
         };
-        new_tagged<Tag::Point>(L) = std::move(self);
+        new_tagged<Tag::V2>(L) = std::move(self);
         return Value;
     };
     lua_pushcfunction(L, constructor, "Point");
 }
 // Rect meta implementation
+static auto rect_call(lua_State* L) -> int {
+    auto& self = to_tagged<Tag::Rect>(L, 1);
+    return lua::values(L, self.x, self.y, self.w, self.h);
+}
 static auto rect_index(lua_State* L) -> int {
     auto& rect = to_tagged<Tag::Rect>(L, 1);
     const char initial = *luaL_checkstring(L, 2);
@@ -171,6 +228,7 @@ void Rect::push_metatable(lua_State *L) {
             {"__newindex", rect_newindex},
             {"__tostring", rect_tostring},
             {"__namecall", rect_namecall},
+            {"__call", rect_call},
             {nullptr, nullptr}
         };
         luaL_register(L, nullptr, meta);
@@ -192,6 +250,10 @@ void Rect::push_constructor(lua_State *L) {
 }
 
 // Color meta implementation
+static auto color_call(lua_State* L) -> int {
+    auto& c = to_tagged<Tag::Color>(L, 1);
+    return lua::values(L, c.r, c.g, c.b, c.a);
+}
 static auto color_index(lua_State* L) -> int {
     auto& self = to_tagged<Tag::Color>(L, 1);
     const auto initial = lua::check<char>(L, 2);
@@ -237,6 +299,7 @@ void Color::push_metatable(lua_State *L) {
             {"__newindex", color_newindex},
             {"__tostring", color_tostring},
             {"__namecall", color_namecall},
+            {"__call", color_call},
             {nullptr, nullptr}
         };
         luaL_register(L, nullptr, meta);
@@ -305,7 +368,7 @@ static auto texture_namecall(lua_State* L) -> int {
                 auto dst_rect = to_tagged<Tag::Rect>(L, 2);
                 if (lua_isnumber(L, 3)) {
                     auto angle = lua::check<double>(L, 3);
-                    auto center = to_tagged_if<Tag::Point>(L, 4);
+                    auto center = to_tagged_if<Tag::V2>(L, 4);
                     auto src_rect = to_tagged_if<Tag::Rect>(L, 5);
                     check_sdl(L, SDL_RenderTextureRotated(renderer, self.get(), src_rect, &dst_rect, angle, center, SDL_FLIP_NONE));
                     return None;

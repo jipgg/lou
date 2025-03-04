@@ -17,5 +17,6 @@ target_link_libraries(lou_engine PRIVATE
     Luau.CLI.lib
     Luau.Compiler
     imgui
+    blaze
 )
 set_target_properties(lou_engine PROPERTIES OUTPUT_NAME lou)

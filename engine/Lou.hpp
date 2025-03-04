@@ -12,6 +12,7 @@
 #include <chrono>
 #include <print>
 #include "common.hpp"
+#include <blaze/Blaze.h>
 
 template <class Ty>
 using C_Owner_t = std::unique_ptr<Ty, void(*)(Ty*)>; 
@@ -24,7 +25,7 @@ struct Color {
     static void push_constructor(lua_State* L);
     static void push_metatable(lua_State* L);
 };
-struct Point {
+struct V2 {
     static void push_constructor(lua_State* L);
     static void push_metatable(lua_State* L);
 };
@@ -176,6 +177,10 @@ struct Lou_State {
 };
 
 enum class Namecall_Atom: int16_t {
+    dot,
+    length,
+    squared_length,
+    normalized,
     load,
     render,
     render_rotated,
@@ -242,7 +247,7 @@ enum class Namecall_Atom: int16_t {
     X(Lou_State)\
     X(Lou_Console)\
     X(Rect)\
-    X(Point)\
+    X(V2)\
     X(Color)\
     X(Texture)\
     X(Font)\
@@ -274,7 +279,7 @@ template <class Ty> struct Mapped_Tag;
 template <> struct Mapped_Type<Tag::TAG> {using type = TYPE;};\
 template <> struct Mapped_Tag<TYPE> {static constexpr Tag value = Tag::TAG;}
 
-Map_Type_To_Tag(Point, SDL_FPoint);
+Map_Type_To_Tag(V2, SDL_FPoint);
 Map_Type_To_Tag(Rect, SDL_FRect);
 Map_Type_To_Tag(Color, SDL_Color);
 Map_Type_To_Tag(Lou_State, Lou_State);
