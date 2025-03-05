@@ -24,6 +24,12 @@ static auto button_name(lua_State* L, uint8_t button_index) -> std::string {
 }
 
 void Lou_State::update() {
+    if (not destroyed_callbacks.empty()) {
+        for (auto& cb : destroyed_callbacks) {
+            cb.unbind();
+        }
+        destroyed_callbacks.clear();
+    }
     auto L = lua_state();
     auto& e = cache.event;
     while (SDL_PollEvent(&e)) {

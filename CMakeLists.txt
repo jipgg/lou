@@ -9,4 +9,4 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_subdirectory(extern)
 
 # project
-add_subdirectory(engine)
+add_subdirectory(framework)

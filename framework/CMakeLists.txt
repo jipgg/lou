@@ -1,12 +1,12 @@
 
-add_executable(lou_engine WIN32
+add_executable(lou_framework WIN32
     lou_init.cpp
     lou_render.cpp
     lou_update.cpp
     luau_init.cpp
     meta_implementations.cpp
 )
-target_link_libraries(lou_engine PRIVATE
+target_link_libraries(lou_framework PRIVATE
     SDL3::SDL3
     SDL3_ttf::SDL3_ttf
     SDL3_image::SDL3_image
@@ -19,4 +19,4 @@ target_link_libraries(lou_engine PRIVATE
     imgui
     blaze
 )
-set_target_properties(lou_engine PROPERTIES OUTPUT_NAME lou)
+set_target_properties(lou_framework PROPERTIES OUTPUT_NAME lou)

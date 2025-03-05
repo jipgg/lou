@@ -6,6 +6,8 @@
 #include <imgui.h>
 #include <filesystem>
 #include <Luau/Compiler.h>
+#include <ranges>
+namespace rngs = std::ranges;
 namespace fs = std::filesystem;
 using Init_Info = Lou_State::Init_Info;
 
@@ -25,6 +27,26 @@ static void init_window_and_renderer(Lou_State* state, const Init_Info& info) {
     state->renderer.owning.renderer.reset(renderer);
 }
 
+static auto run_script_entry_point(lua_State* L, const fs::path& script_entry_point) -> std::expected<void, std::string> {
+    fs::path path{script_entry_point};
+    std::ifstream file{path};
+    if (!file.is_open()) {
+        return std::unexpected(std::format("failed to open '{}'", path.string()));
+    }
+    std::string line, contents;
+    while (std::getline(file, line)) contents.append(line + '\n');
+    auto bytecode = Luau::compile(contents, {});
+    auto chunkname = std::format("@{}:", fs::absolute(path).string());
+    rngs::replace(chunkname, '\\', '/');
+    auto status = luau_load(L, chunkname.c_str(), bytecode.data(), bytecode.size(), 0);
+    if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+        std::string runtime_error{lua_tostring(L, -1)};
+        lua_pop(L, 1);
+        return std::unexpected(std::move(runtime_error));
+    }
+    return {};
+}
+
 void Lou_State::init(Init_Info info) {
     SDL_Init(SDL_INIT_VIDEO);
     TTF_Init();
@@ -40,20 +62,8 @@ void Lou_State::init(Init_Info info) {
     texture.renderer = renderer.get();
     //auto font = TTF_OpenFont("resources/main.ttf", 60);
     init_luau();
-    fs::path path{info.script_entry_point};
-    std::ifstream file{path};
-    if (!file.is_open()) {
-        console.error(std::format("failed to open '{}'", path.string()));
-        return;
-    }
-    std::string line, contents;
-    while (std::getline(file, line)) contents.append(line + '\n');
-    auto bytecode = Luau::compile(contents, {});
-    auto chunkname = std::format("=script:{}:", fs::relative(path).string());
-    auto status = luau_load(lua_state(), chunkname.c_str(), bytecode.data(), bytecode.size(), 0);
-    if (lua_pcall(lua_state(), 0, 0, 0) != LUA_OK) {
-        console.error(lua_tostring(lua_state(), -1));
-    }
+    auto ok = run_script_entry_point(lua_state(), info.script_entry_point);
+    if (not ok) console.error(ok.error());
 }
 
 
@@ -64,7 +74,7 @@ auto main(int argc, char** argv) -> int {
         .width = 1920,
         .height = 1080,
         .flags = SDL_WINDOW_RESIZABLE,
-        .script_entry_point = argc > 1 ? argv[1] : "game/init.luau",
+        .script_entry_point = argc > 1 ? argv[1] : "init.luau",
     });
     while(state.running) {
         state.update();

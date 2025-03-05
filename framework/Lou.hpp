@@ -17,20 +17,35 @@
 template <class Ty>
 using C_Owner_t = std::unique_ptr<Ty, void(*)(Ty*)>; 
 
-struct Rect {
+struct Lou_Rect {
     static void push_constructor(lua_State* L);
     static void push_metatable(lua_State* L);
 };
-struct Color {
+struct Lou_Color {
     static void push_constructor(lua_State* L);
     static void push_metatable(lua_State* L);
 };
-struct V2 {
+struct Lou_Vec2 {
     static void push_constructor(lua_State* L);
     static void push_metatable(lua_State* L);
+};
+struct Lou_Callback_Handle {
+    lua::Basic_Callback_List* callback;
+    lua::Basic_Callback_List::Id id;
+    void unbind() {
+        if (callback) callback->remove(id);
+        callback = nullptr;
+    }
+    static void push_metatable(lua_State* L);
+    static auto bind(lua::Basic_Callback_List& cb, lua_State* L, int idx) -> Lou_Callback_Handle {
+        return {
+            .callback = &cb,
+            .id = cb.add(L, idx),
+        };
+    }
 };
 
-struct Texture {
+struct Lou_Texture {
     C_Owner_t<SDL_Texture> ptr{nullptr, SDL_DestroyTexture};
     lua::Ref cached_color_ref;
     static void push_metatable(lua_State* L);
@@ -46,7 +61,7 @@ struct Texture {
     }
 };
 
-struct Font {
+struct Lou_Font {
     C_Owner_t<TTF_Font> ptr{nullptr, TTF_CloseFont};
     auto open(const std::string& file, float font_size) -> std::expected<void, std::string> {
         ptr.reset(TTF_OpenFont(file.c_str(), font_size));
@@ -117,9 +132,9 @@ struct Lou_Renderer {
     constexpr auto get_text_engine() -> TTF_TextEngine* const {return owning.text_engine.get();}
     static void push_metatable(lua_State* L);
 };
-struct Lou_Texture {
+struct Lou_Create_Texture {
     SDL_Renderer* renderer;
-    auto render_text_blended(const Font& font, std::string_view text, SDL_Color color) -> std::expected<Texture, std::string> {
+    auto render_text_blended(const Lou_Font& font, std::string_view text, SDL_Color color) -> std::expected<Lou_Texture, std::string> {
         auto surface = C_Owner_t<SDL_Surface>(TTF_RenderText_Blended(
             font.ptr.get(),
             text.data(),
@@ -128,14 +143,14 @@ struct Lou_Texture {
         ), SDL_DestroySurface);
         auto texture = SDL_CreateTextureFromSurface(renderer, surface.get());
         if (not texture) return std::unexpected{SDL_GetError()};
-        return Texture{
+        return Lou_Texture{
             .ptr{texture, SDL_DestroyTexture},
         };
     }
-    auto load_image(const char* file) -> std::expected<Texture, std::string> {
+    auto load_image(const char* file) -> std::expected<Lou_Texture, std::string> {
         auto texture = IMG_LoadTexture(renderer, file);
         if (not texture) return std::unexpected(SDL_GetError());
-        return Texture{
+        return Lou_Texture{
             .ptr{texture, SDL_DestroyTexture},
         };
     }
@@ -143,15 +158,17 @@ struct Lou_Texture {
 };
 
 struct Lou_State {
+    static constexpr auto global_name = "lou";
     struct {
         C_Owner_t<lua_State> luau{nullptr, lua_close};
     } owning;
     Lou_Window window;
     Lou_Renderer renderer;
-    Lou_Texture texture;
+    Lou_Create_Texture texture;
     Lou_Console console;
     Lou_Keyboard keyboard;
     Lou_Mouse mouse;
+    std::vector<Lou_Callback_Handle> destroyed_callbacks;
     using Clock_t = std::chrono::steady_clock;
     using Time_Point_t = std::chrono::time_point<Clock_t>;
     struct {
@@ -177,12 +194,14 @@ struct Lou_State {
 };
 
 enum class Namecall_Atom: int16_t {
+    unbind,
     dot,
     length,
     squared_length,
     normalized,
     load,
     render,
+    destroy,
     render_rotated,
     load_image,
     render_texture,
@@ -198,6 +217,8 @@ enum class Namecall_Atom: int16_t {
     get_callbacks,
     position,
     on_update,
+    remove, 
+    add,
     on_render,
     size_in_pixels,
     size_changed,
@@ -243,19 +264,20 @@ enum class Namecall_Atom: int16_t {
 };
 
 #define Tag_Enum_Item_Generator(X) \
-    X(Any)\
+    X(Unknown)\
     X(Lou_State)\
     X(Lou_Console)\
-    X(Rect)\
-    X(V2)\
-    X(Color)\
-    X(Texture)\
-    X(Font)\
+    X(Lou_Rect)\
+    X(Lou_Vec2)\
+    X(Lou_Color)\
+    X(Lou_Texture)\
+    X(Lou_Font)\
     X(Lou_Window)\
     X(Lou_Renderer)\
     X(Lou_Keyboard)\
     X(Lou_Mouse)\
-    X(Lou_Texture)\
+    X(Lou_Create_Texture)\
+    X(Lou_Callback_Handle)\
     X(COMPILE_TIME_ENUM_SENTINEL)
 
 enum class Tag {
@@ -279,18 +301,19 @@ template <class Ty> struct Mapped_Tag;
 template <> struct Mapped_Type<Tag::TAG> {using type = TYPE;};\
 template <> struct Mapped_Tag<TYPE> {static constexpr Tag value = Tag::TAG;}
 
-Map_Type_To_Tag(V2, SDL_FPoint);
-Map_Type_To_Tag(Rect, SDL_FRect);
-Map_Type_To_Tag(Color, SDL_Color);
+Map_Type_To_Tag(Lou_Vec2, SDL_FPoint);
+Map_Type_To_Tag(Lou_Rect, SDL_FRect);
+Map_Type_To_Tag(Lou_Color, SDL_Color);
 Map_Type_To_Tag(Lou_State, Lou_State);
 Map_Type_To_Tag(Lou_Console, Lou_Console);
 Map_Type_To_Tag(Lou_Keyboard, Lou_Keyboard);
 Map_Type_To_Tag(Lou_Mouse, Lou_Mouse);
 Map_Type_To_Tag(Lou_Window, Lou_Window);
 Map_Type_To_Tag(Lou_Renderer, Lou_Renderer);
-Map_Type_To_Tag(Texture, Texture);
-Map_Type_To_Tag(Font, Font);
 Map_Type_To_Tag(Lou_Texture, Lou_Texture);
+Map_Type_To_Tag(Lou_Font, Lou_Font);
+Map_Type_To_Tag(Lou_Create_Texture, Lou_Create_Texture);
+Map_Type_To_Tag(Lou_Callback_Handle, Lou_Callback_Handle);
 
 #undef Map_Type_To_Tag
 

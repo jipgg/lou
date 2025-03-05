@@ -1,44 +1,43 @@
 declare print: <Tostring_Compatible_Args...>(Tostring_Compatible_Args...) -> ()
 declare warn: <Tostring_Compatible_Args...>(Tostring_Compatible_Args...) -> ()
-declare class Rect
+declare class Lou_Rect
     x: number
     y: number
     w: number
     h: number
     function as_tuple(self): (number, number, number, number)
 end
-declare class V2
+declare class Lou_Vec2
     x: number
     y: number
     function as_tuple(self): (number, number)
-    function __add(self, other: V2): V2
-    function __sub(self, other: V2): V2
-    function __mul(self, other: V2 | number): V2
-    function dot(self, other: V2): number
-    function normalized(self): V2
+    function __add(self, other: Lou_Vec2): Lou_Vec2
+    function __sub(self, other: Lou_Vec2): Lou_Vec2
+    function __mul(self, other: Lou_Vec2 | number): Lou_Vec2
+    function dot(self, other: Lou_Vec2): number
+    function normalized(self): Lou_Vec2
     function squared_length(self): number
     function length(self): number
 end
 
-declare class Color
+declare class Lou_Color
     r: number
     g: number
     b: number
     a: number
     function as_tuple(self): (number, number, number, number)
 end
-export type Blend_Mode = 'none'|'mod'|'add'
-export type Scale_Mode = 'linear'|'nearest'
-declare class Texture
-    function size(self): (number, number)
-    color: Color
-    blend_mode: Blend_Mode
-    scale_mode: Scale_Mode 
-    render: ((self: Texture, x: number, y: number, w: number?, h: number?) -> ())
-        & ((self: Texture, dest: Rect, src: Rect?) -> ())
-        & ((self: Texture, dst: Rect, angle: number, center: V2?, src: Rect?) -> ())
+declare class Lou_Callback_Handle
+    function destroy(self): ()
 end
-declare class Font
+declare class Lou_Texture
+    function size(self): (number, number)
+    color: Lou_Color
+    render: ((self: Lou_Texture, x: number, y: number, w: number?, h: number?) -> ())
+        & ((self: Lou_Texture, dest: Lou_Rect, src: Lou_Rect?) -> ())
+        & ((self: Lou_Texture, dst: Lou_Rect, angle: number, center: Lou_Vec2?, src: Lou_Rect?) -> ())
+end
+declare class Lou_Font
     font_size: number
 end
 
@@ -65,49 +64,47 @@ declare class Lou_Window
     function aspect_ratio(self): (number, number)
 end
 declare class Lou_Renderer
-    function draw_rect(self, rect: Rect): ()
-    function fill_rect(self, rect: Rect): ()
+    function draw_rect(self, rect: Lou_Rect): ()
+    function fill_rect(self, rect: Lou_Rect): ()
     function draw_point(self, x: number, y: number): ()
     function draw_line(self, x1: number, y1: number, x2: number, y2: number): ()
     function set_draw_color(self, r: number, g: number, b: number, a: number?): ()
     function clear(self): ()
-    render_texture: ((self: Lou_Renderer, texture: Texture, x: number, y: number) -> ())
-        & ((self: Lou_Renderer, texture: Texture, dst: Rect, src: Rect?) -> ())
+    render_texture: ((self: Lou_Renderer, texture: Lou_Texture, x: number, y: number) -> ())
+        & ((self: Lou_Renderer, texture: Lou_Texture, dst: Lou_Rect, src: Lou_Rect?) -> ())
 end
 
 declare class Lou_Mouse
     function position(self): (number, number)
-    function pressed(self, handler: (type: ('left'|'middle'|'right'), x: number, y: number)->()): ()
-    function released(self, handler: (type: ('left'|'middle'|'right'), x: number, y: number)->()): ()
-    function moved(self, handler: (x: number, y: number)->()): ()
+    function pressed(self, handler: (type: ('left'|'middle'|'right'), x: number, y: number)->()): Lou_Callback_Handle
+    function released(self, handler: (type: ('left'|'middle'|'right'), x: number, y: number)->()): Lou_Callback_Handle
 end
 declare class Lou_Keyboard
-    function pressed(self, handler: (key: string)->()): ()
-    function released(self, handler: (key: string)->()): ()
+    function pressed(self, handler: (key: string)->()): Lou_Callback_Handle
+    function released(self, handler: (key: string)->()): Lou_Callback_Handle
     function is_pressed(self, key: string): boolean
 end
 
-declare class Lou_Texture
-    function from_text(self, font: Font, text: string, fg_color: Color): Texture
-    function from_solid_color(self, solid_color: Color, w: number?, h: number?): Texture
-    function draw(self, fn: (w: number, h: number)->(), w: number, h: number): Texture
-    function load_image(self, file: string): Texture
+declare class Lou_Create_Texture
+    function from_text(self, font: Lou_Font, text: string, fg_color: Lou_Color): Lou_Texture
+    function from_solid_color(self, solid_color: Lou_Color, w: number?, h: number?): Lou_Texture
+    function draw(self, fn: (w: number, h: number)->(), w: number, h: number): Lou_Texture
+    function load_image(self, file: string): Lou_Texture
 end
 
 declare class Lou_State 
-    texture: Lou_Texture
+    texture: Lou_Create_Texture
     renderer: Lou_Renderer
     window: Lou_Window
     mouse: Lou_Mouse
-    get_mouse: () -> Lou_Mouse
     keyboard: Lou_Keyboard
     console: Lou_Console
-    function on_render(self, fn: ()->()): ()
-    function on_update(self, fn: (delta_seconds: number)->()): ()
+    function on_render(self, fn: ()->()): Lou_Callback_Handle
+    function on_update(self, fn: (delta_seconds: number)->()): Lou_Callback_Handle
 end
 
 declare lou: Lou_State 
-declare function Rect(x: number?, y: number?, w: number?, h: number?): Rect
-declare function V2(x: number?, y: number?): V2
-declare function Color(r: number?, g: number?, b: number?, a: number?): Color
-declare function Font(file_path: string, font_size: number): Font
+declare function Rect(x: number?, y: number?, w: number?, h: number?): Lou_Rect
+declare function Vec2(x: number?, y: number?): Lou_Vec2
+declare function Color(r: number?, g: number?, b: number?, a: number?): Lou_Color
+declare function Font(file_path: string, font_size: number): Lou_Font

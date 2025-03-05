@@ -40,17 +40,10 @@
     ],
     "buildPresets": [
         {
-            "name": "engine",
+            "name": "framework",
             "configurePreset": "msvc",
             "targets": [
-                "lou_engine"
-            ]
-        },
-        {
-            "name": "engine-ninja",
-            "configurePreset": "clangd",
-            "targets": [
-                "lou_engine"
+                "lou_framework"
             ]
         }
   ]

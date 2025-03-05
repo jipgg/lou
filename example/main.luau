@@ -1,10 +1,10 @@
 print('Hello')
+local shared = require('./shared')
 
-local main_font = Font("resources/main.ttf", 100)
 local white = Color(0xff, 0xff, 0xff, 0xff)
-local hello_world = lou.texture:from_text(main_font, "Hello, world!", white)
+print(lou.texture)
+local hello_world = lou.texture:from_text(shared.main_font, "Hello, world!", white)
 local luau_logo = lou.texture:load_image("resources/Luau_Logo.png")
-local e = V2(100, 100)
 
 --console:warn("yoo")
 
@@ -15,10 +15,13 @@ local c = lou.console
 c:warn("im a variable")
 
 print(lou.keyboard)
-
-
-lou.keyboard:released(function(key: string)
+local cbhandle: Lou_Callback_Handle
+cbhandle = lou.keyboard:released(function(key: string)
     print(`key is '{key}'`)
+    if key == 'T' then
+        print(`destroying handle {cbhandle}`)
+        cbhandle:destroy()
+    end
 end)
 
 lou.window:set_title("YOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
@@ -47,6 +50,9 @@ lou:on_update(function(delta_seconds: number)
     my_other_rect.h = 300 + 300 * math.sin(angle * 1.1)
 end)
 lou:on_render(function()
+    for i, v in shared.renderables do
+        v:render()
+    end
     lou.renderer:set_draw_color(0xff, 0xff, 0xff)
     lou.renderer:draw_rect(my_rect)
     lou.renderer:set_draw_color(color:as_tuple())

@@ -456,18 +456,31 @@ concept Callback_List_Add_Compatible = requires (lua_State* L) {
     push(L, Ty{});
 } or std::is_void_v<Ty>;
 
+struct Basic_Callback_List {
+    std::list<Ref> handlers;
+    using Id = decltype(handlers)::iterator;
+    auto add(lua_State* L, int idx) -> Id {
+        if (not lua_isfunction(L, idx)) type_error(L, idx, "function");
+        return handlers.insert(handlers.end(), Ref{L, idx});
+    }
+    void remove(const Id& callback_id) {
+        handlers.erase(callback_id);
+    }
+};
 template <Callback_List_Add_Compatible...Args>
 struct Callback_List {
-    std::list<Ref> handlers;
-    void add(lua_State* L, int idx) {
-        if (not lua_isfunction(L, idx)) lua::type_error(L, idx, "function");
-        handlers.emplace_back(L, idx);
-    }
+    Basic_Callback_List callbacks;
+    using Id = Basic_Callback_List::Id;
+    auto add(lua_State* L, int idx) -> Id {return callbacks.add(L, idx);}
+    void remove(const Id& callback_id) {callbacks.remove(callback_id);}
+    operator Basic_Callback_List&() {return callbacks;}
+    operator const Basic_Callback_List&() {return callbacks;}
+
     template <class Console_Like>
     requires Can_Output_Error<Console_Like>
     void call(lua_State* L, Console_Like& console, Args...args) {
         auto push_arg = [&L](auto arg) {push(L, std::forward<decltype(arg)>(arg));};
-        for (auto& fn : handlers) {
+        for (auto& fn : callbacks.handlers) {
             fn.push(L);
             (push_arg(std::forward<Args>(args)),...);
             if (lua_pcall(L, sizeof...(Args), 0, 0) != LUA_OK) {
@@ -479,21 +492,23 @@ struct Callback_List {
 };
 template <>
 struct Callback_List<void> {
-    std::list<Ref> handlers;
+    Basic_Callback_List callbacks;
+    using Id = Basic_Callback_List::Id;
+    auto add(lua_State* L, int idx) -> Id {return callbacks.add(L, idx);}
+    void remove(const Id& callback_id) {callbacks.remove(callback_id);}
+    operator Basic_Callback_List&() {return callbacks;}
+    operator const Basic_Callback_List&() {return callbacks;}
+
     template <class Console_Like>
     requires Can_Output_Error<Console_Like>
     auto call(lua_State* L, Console_Like& console) {
-        for (auto& fn : handlers) {
+        for (auto& fn : callbacks.handlers) {
             fn.push(L);
             if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
                 console.error(lua_tostring(L, -1));
                 lua_pop(L, 1);
             }
         }
-    }
-    void add(lua_State* L, int idx) {
-        if (not lua_isfunction(L, idx)) type_error(L, idx, "function");
-        handlers.emplace_back(Ref(L, idx));
     }
 };
 }
