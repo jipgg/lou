@@ -8,6 +8,7 @@ add_subdirectory(blaze)
 target_compile_definitions(Luau.VM PUBLIC
     LUA_UTAG_LIMIT=255
     LUA_LUTAG_LIMIT=255
+    LUA_VECTOR_SIZE=4
 )
 
 add_library(imgui STATIC

@@ -96,253 +96,6 @@ constexpr const char* blend_mode_to_string(SDL_BlendMode bm) {
         default: return "invalid";
     }
 }
-// Vec2 meta implementation
-static auto vec2_call(lua_State* L) -> int {
-    const auto& self = to_tagged<Vec2>(L, 1);
-    return lua::values(L, self.x, self.y);
-}
-static auto vec2_index(lua_State* L) -> int {
-    auto& self = to_tagged<Vec2>(L, 1);
-    const char initial = *lua::check<const char*>(L, 2);
-    switch (initial) {
-        case 'x': return lua::values(L, self.x);
-        case 'y': return lua::values(L, self.y);
-    }
-    lua::arg_error(L, 2, "invalid field");
-}
-static auto vec2_newindex(lua_State* L) -> int {
-    auto& self = to_tagged<Vec2>(L, 1);
-    const auto initial = *lua::check<const char*>(L, 2);
-    const auto val = lua::check<float>(L, 3);
-    switch (initial) {
-        case 'x': self.x = val; return None;
-        case 'y': self.y = val; return None;
-    }
-    lua::arg_error(L, 2, "invalid field");
-}
-static auto vec2_tostring(lua_State* L) -> int {
-    auto& self = to_tagged<Vec2>(L, 1);
-    return lua::values(L, basic_tostring<Vec2>(self.x, self.y));
-}
-static auto v2_add(lua_State* L) -> int {
-    auto& self = to_tagged<Vec2>(L, 1);
-    auto& other = to_tagged<Vec2>(L, 2);
-    make_tagged<Vec2>(L, self.x + other.x, self.y + other.y);
-    return Value;
-}
-static auto v2_sub(lua_State* L) -> int {
-    auto& self = to_tagged<Vec2>(L, 1);
-    auto& other = to_tagged<Vec2>(L, 2);
-    make_tagged<Vec2>(L, self.x - other.x, self.y - other.y);
-    return Value;
-}
-static auto v2_mul(lua_State* L) -> int {
-    auto a_opt = to_tagged_if<Vec2>(L, 1);
-    auto b_opt = to_tagged_if<Vec2>(L, 2);
-    if (a_opt and b_opt) {
-        make_tagged<Vec2>(L,a_opt->x * b_opt->x, a_opt->y * b_opt->y);
-        return Value;
-    }
-    const int num_idx = a_opt ? 2 : 1;
-    const auto& v = a_opt ? *a_opt : *b_opt;
-    auto scalar = lua::check<float>(L, num_idx);
-    make_tagged<Vec2>(L, v.x * scalar, v.y * scalar);
-    return Value;
-}
-static auto v2_namecall(lua_State* L) -> int {
-    auto& self = to_tagged<Vec2>(L, 1);
-    auto [atom, name] = lua::namecall_atom<Namecall_Atom>(L);
-    auto vec = [](const auto& pt) {
-        return blaze::StaticVector{pt.x, pt.y};
-    };
-    switch (atom) {
-        case Namecall_Atom::as_tuple:
-            return lua::values(L, self.x, self.y);
-        case Namecall_Atom::dot: {
-            const auto& other = to_tagged<Vec2>(L, 2);
-            return lua::values(L, blaze::dot(vec(self), vec(other)));
-        }
-        case Namecall_Atom::length: {
-            auto length = blaze::length(vec(self));
-            return lua::values(L, length);
-        }
-        case Namecall_Atom::squared_length: {
-            auto sl = blaze::sqrLength(vec(self));
-            return lua::values(L, sl);
-        }
-        case Namecall_Atom::normalized: {
-            auto unit = blaze::normalize(vec(self));
-            make_tagged<Vec2>(L, unit[0], unit[1]);
-            return Value;
-        }
-        default: break;
-    }
-    err_invalid_method<Vec2>(L, atom);
-}
-void Lou_Vec2::push_metatable(lua_State *L) {
-    constexpr luaL_Reg meta[] = {
-        {"__index", vec2_index},
-        {"__newindex", vec2_newindex},
-        {"__add", v2_add},
-        {"__sub", v2_sub},
-        {"__mul", v2_mul},
-        {"__tostring", vec2_tostring},
-        {"__namecall", v2_namecall},
-        {nullptr, nullptr}
-    };
-    basic_push_metatable<Vec2>(L, meta);
-}
-void Lou_Vec2::push_constructor(lua_State *L) {
-    auto constructor = [](auto L) {
-        SDL_FPoint self{
-            .x = lua::opt<float>(L, 1),
-            .y = lua::opt<float>(L, 2),
-        };
-        new_tagged<Vec2>(L) = std::move(self);
-        return Value;
-    };
-    lua_pushcfunction(L, constructor, "Vec2");
-}
-// Rect meta implementation
-static auto rect_call(lua_State* L) -> int {
-    auto& self = to_tagged<Rect>(L, 1);
-    return lua::values(L, self.x, self.y, self.w, self.h);
-}
-static auto rect_index(lua_State* L) -> int {
-    auto& rect = to_tagged<Rect>(L, 1);
-    const char initial = *luaL_checkstring(L, 2);
-    switch (initial) {
-        case 'x': return lua::values(L, rect.x);
-        case 'y': return lua::values(L, rect.y);
-        case 'w': return lua::values(L, rect.w);
-        case 'h': return lua::values(L, rect.h);
-    }
-    lua::arg_error(L, 2, "invalid field");
-}
-static auto rect_newindex(lua_State* L) -> int {
-    auto& rect = to_tagged<Rect>(L, 1);
-    const char initial = *luaL_checkstring(L, 2);
-    const float val = static_cast<float>(luaL_checknumber(L, 3));
-    switch (initial) {
-        case 'x': rect.x = val; return 0;
-        case 'y': rect.y = val; return 0;
-        case 'w': rect.w = val; return 0;
-        case 'h': rect.h = val; return 0;
-    }
-    lua::arg_error(L, 2, "invalid field");
-}
-static auto rect_tostring(lua_State* L) -> int {
-    auto& self = to_tagged<Rect>(L, 1);
-    return lua::values(L, basic_tostring<Rect>(self.x, self.y, self.w, self.h));
-}
-static auto rect_namecall(lua_State* L) -> int {
-    auto& self = to_tagged<Rect>(L, 1);
-    auto [atom, name] = lua::namecall_atom<Namecall_Atom>(L);
-    switch (atom) {
-        case Namecall_Atom::as_tuple:
-            return lua::values(L, self.x, self.y, self.w, self.h);
-        default: break;
-    }
-    err_invalid_method<Rect>(L, atom);
-}
-
-void Lou_Rect::push_metatable(lua_State *L) {
-    if (new_metatable<Rect>(L)) {
-        const luaL_Reg meta[] = {
-            {"__index", rect_index},
-            {"__newindex", rect_newindex},
-            {"__tostring", rect_tostring},
-            {"__namecall", rect_namecall},
-            {"__call", rect_call},
-            {nullptr, nullptr}
-        };
-        luaL_register(L, nullptr, meta);
-        set_type_metamethod<Rect>(L);
-    }
-}
-void Lou_Rect::push_constructor(lua_State *L) {
-    auto constructor = [](auto L) {
-        SDL_FRect rect{
-            .x = lua::opt<float>(L, 1),
-            .y = lua::opt<float>(L, 2),
-            .w = lua::opt<float>(L, 3),
-            .h = lua::opt<float>(L, 4),
-        };
-        new_tagged<Rect>(L) = std::move(rect);
-        return 1;
-    };
-    lua_pushcfunction(L, constructor, "Rect");
-}
-
-// Color meta implementation
-static auto color_call(lua_State* L) -> int {
-    auto& c = to_tagged<Color>(L, 1);
-    return lua::values(L, c.r, c.g, c.b, c.a);
-}
-static auto color_index(lua_State* L) -> int {
-    auto& self = to_tagged<Color>(L, 1);
-    const auto initial = lua::check<char>(L, 2);
-    switch (initial) {
-        case 'r': return lua::values(L, self.r);
-        case 'g': return lua::values(L, self.g);
-        case 'b': return lua::values(L, self.b);
-        case 'a': return lua::values(L, self.a);
-    }
-    lua::arg_error(L, 2, "invalid field");
-}
-static auto color_newindex(lua_State* L) -> int {
-    auto& self = to_tagged<Color>(L, 1);
-    const char initial = lua::check<char>(L, 2);
-    const auto val = lua::check<uint8_t>(L, 3);
-    switch (initial) {
-        case 'r': self.r = val; return 0;
-        case 'g': self.g = val; return 0;
-        case 'b': self.b = val; return 0;
-        case 'a': self.a = val; return 0;
-    }
-    lua::arg_error(L, 2, "invalid field");
-}
-static auto color_tostring(lua_State* L) -> int {
-    auto& self = to_tagged<Color>(L, 1);
-    return lua::values(L, basic_tostring<Color>(self.r, self.g, self.b, self.a));
-}
-static auto color_namecall(lua_State* L) -> int {
-    auto& self = to_tagged<Color>(L, 1);
-    auto [atom, name] = lua::namecall_atom<Namecall_Atom>(L);
-    switch (atom) {
-        case Namecall_Atom::as_tuple:
-            return lua::values(L, self.r, self.g, self.b, self.a);
-        default: break;
-    }
-    err_invalid_method<Color>(L, atom);
-}
-void Lou_Color::push_metatable(lua_State *L) {
-    if (new_metatable<Color>(L)) {
-        const luaL_Reg meta[] = {
-            {"__index", color_index},
-            {"__newindex", color_newindex},
-            {"__tostring", color_tostring},
-            {"__namecall", color_namecall},
-            {"__call", color_call},
-            {nullptr, nullptr}
-        };
-        luaL_register(L, nullptr, meta);
-        set_type_metamethod<Color>(L);
-    }
-}
-void Lou_Color::push_constructor(lua_State *L) {
-    auto constructor = [](auto L) -> int {
-        SDL_Color self{
-            .r = lua::opt<Uint8>(L, 1),
-            .g = lua::opt<Uint8>(L, 2),
-            .b = lua::opt<Uint8>(L, 3),
-            .a = lua::opt<Uint8, 0xff>(L, 4),
-        };
-        make_tagged<Color>(L, std::move(self));
-        return Value;
-    };
-    lua_pushcfunction(L, constructor, "Color");
-}
 // Font meta implementation
 void Lou_Font::push_metatable(lua_State *L) {
     if (new_metatable<Font>(L)) {
@@ -385,12 +138,41 @@ void Lou_Callback_Handle::push_metatable(lua_State *L) {
 // Texture meta implementation
 static auto texture_index(lua_State* L) -> int {
     auto& self = to_tagged<Texture>(L, 1);
+    auto texture = self.get();
     auto initial = lua::check<char>(L, 2);
     switch (initial) {
+        case 's': {
+            float w, h;
+            check_sdl(L, SDL_GetTextureSize(self.get(), &w, &h));
+            lua_pushvector(L, w, h, 0, 0);
+            return Value;
+        }
         case 'c': {
+            std::array color{0.f, 0.f, 0.f, 1.f}; 
+            check_sdl(L, SDL_GetTextureColorModFloat(self.get(), &color[0], &color[1], &color[2]));
+            check_sdl(L, SDL_GetTextureAlphaModFloat(texture, &color[3]));
+            lua::push(L, color);
+            return Value;
         }
     }
     lua::arg_error(L, 2, "invalid index");
+}
+static auto texture_newindex(lua_State* L) -> int {
+    auto& self = to_tagged<Texture>(L, 1);
+    auto texture = self.get();
+    auto initial = lua::check<char>(L, 2);
+    switch (initial) {
+        case 's':
+            lua::error(L, "field is readonly");
+        case 'c': {
+            auto col = as_color(lua::check<Vector_t>(L, 3));
+            check_sdl(L, SDL_SetTextureColorModFloat(texture, col.r, col.g, col.b));
+            check_sdl(L, SDL_SetTextureAlphaModFloat(texture, col.a));
+            return None;
+        }
+    }
+    lua::arg_error(L, 2, "invalid index");
+
 }
 static auto texture_namecall(lua_State* L) -> int {
     auto& self = to_tagged<Texture>(L, 1);
@@ -409,17 +191,10 @@ static auto texture_namecall(lua_State* L) -> int {
                 rect->h = static_cast<float>(luaL_optnumber(L, 5, rect->h));
                 check_sdl(L, SDL_RenderTexture(renderer, self.get(), nullptr, &rect.value()));
                 return None;
-            } else if (is_tagged<Rect>(L, 2)) {
-                auto dst_rect = to_tagged<Rect>(L, 2);
-                if (lua_isnumber(L, 3)) {
-                    auto angle = lua::check<double>(L, 3);
-                    auto center = to_tagged_if<Vec2>(L, 4);
-                    auto src_rect = to_tagged_if<Rect>(L, 5);
-                    check_sdl(L, SDL_RenderTextureRotated(renderer, self.get(), src_rect, &dst_rect, angle, center, SDL_FLIP_NONE));
-                    return None;
-                }
-                auto src_rect = to_tagged_if<Rect>(L, 3);
-                check_sdl(L, SDL_RenderTexture(renderer, self.get(), src_rect, &dst_rect));
+            } else if (lua_isvector(L, 2)) {
+                auto [dst, angle] = lua::check_args<lua::Vector_t, double>(L, 2);
+                SDL_FRect dest{dst[0], dst[1], dst[2], dst[3]};
+                check_sdl(L, SDL_RenderTexture(renderer, self.get(), nullptr, &dest));
                 return None;
             }
         }
@@ -450,8 +225,8 @@ static auto create_texture_namecall(lua_State* L) -> int {
         case Namecall_Atom::from_text: {
             auto& font = to_tagged<Font>(L, 2);
             auto text = lua::check<std::string_view>(L, 3);
-            auto color = to_tagged<Color>(L, 4);
-            auto r = self.render_text_blended(font, text, color);
+            auto color = lua::check<lua::Vector_t>(L, 4);
+            auto r = self.render_text_blended(font, text, as_color(color));
             if (!r) lua::error(L, r.error());
             make_tagged<Texture>(L, std::move(r.value()));
             return Value;
@@ -562,12 +337,16 @@ static auto renderer_namecall(lua_State* L) -> int {
     int atom;
     lua_namecallatom(L, &atom);
     switch (static_cast<Namecall_Atom>(atom)) {
-        case Namecall_Atom::draw_rect:
-            check_sdl(L, SDL_RenderRect(ptr, &to_tagged<Rect>(L, 2)));
-        return None;
-        case Namecall_Atom::fill_rect:
-            check_sdl(L, SDL_RenderFillRect(ptr, &to_tagged<Rect>(L, 2)));
-        return None;
+        case Namecall_Atom::draw_rect: {
+            auto rect = as_rect(lua::check<Vector_t>(L, 2));
+            check_sdl(L, SDL_RenderRect(ptr, &rect));
+            return None;
+        }
+        case Namecall_Atom::fill_rect: {
+            auto rect = as_rect(lua::check<Vector_t>(L, 2));
+            check_sdl(L, SDL_RenderFillRect(ptr, &rect));
+            return None;
+        }
         case Namecall_Atom::draw_point: {
             auto [x, y] = lua::check_args<float, float>(L, 2);
             check_sdl(L, SDL_RenderPoint(ptr, x, y));
@@ -582,9 +361,8 @@ static auto renderer_namecall(lua_State* L) -> int {
             return None;
         }
         case Namecall_Atom::set_draw_color: {
-            auto [r, g, b] = lua::check_args<Uint8, Uint8, Uint8>(L, 2);
-            auto a = lua::opt<Uint8, SDL_ALPHA_OPAQUE>(L, 5);
-            check_sdl(L, SDL_SetRenderDrawColor(ptr, r, g, b, a));
+            auto v = lua::check<Vector_t>(L, 2);
+            check_sdl(L, SDL_SetRenderDrawColorFloat(ptr, v[0], v[1], v[2], v[3]));
             return None;
         }
         case Namecall_Atom::get_draw_color: {
@@ -602,7 +380,7 @@ static auto renderer_namecall(lua_State* L) -> int {
                 check_sdl(L, SDL_RenderTexture(ptr, texture.ptr.get(), nullptr, &rect));
                 return None;
             } else {
-                auto& rect = to_tagged<Rect>(L, 3);
+                auto rect = as_rect(lua::check<Vector_t>(L, 3));
                 check_sdl(L, SDL_RenderTexture(ptr, texture.ptr.get(), nullptr, &rect));
                 return None;
             }

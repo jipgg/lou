@@ -13,22 +13,23 @@
 #include <print>
 #include "common.hpp"
 #include <blaze/Blaze.h>
+#include <Luau/Compiler.h>
+#include <luacode.h>
 
 template <class Ty>
 using C_Owner_t = std::unique_ptr<Ty, void(*)(Ty*)>; 
 
-struct Lou_Rect {
-    static void push_constructor(lua_State* L);
-    static void push_metatable(lua_State* L);
-};
-struct Lou_Color {
-    static void push_constructor(lua_State* L);
-    static void push_metatable(lua_State* L);
-};
-struct Lou_Vec2 {
-    static void push_constructor(lua_State* L);
-    static void push_metatable(lua_State* L);
-};
+using lua::Vector_t;
+constexpr auto as_color(Vector_t v) -> SDL_FColor {
+    return {v[0], v[1], v[2], v[3]};
+}
+constexpr auto as_rect(Vector_t v) -> SDL_FRect {
+    return {v[0], v[1], v[2], v[3]};
+}
+constexpr auto as_point(Vector_t v) -> SDL_FPoint {
+    return {v[0], v[1]};
+}
+
 struct Lou_Callback_Handle {
     lua::Basic_Callback_List* callback;
     lua::Basic_Callback_List::Id id;
@@ -134,12 +135,15 @@ struct Lou_Renderer {
 };
 struct Lou_Create_Texture {
     SDL_Renderer* renderer;
-    auto render_text_blended(const Lou_Font& font, std::string_view text, SDL_Color color) -> std::expected<Lou_Texture, std::string> {
+    auto render_text_blended(const Lou_Font& font, std::string_view text, SDL_FColor color) -> std::expected<Lou_Texture, std::string> {
+        auto cast = [](float v) {
+            return static_cast<Uint8>(std::clamp(v * 255, 0.f, 255.f));
+        };
         auto surface = C_Owner_t<SDL_Surface>(TTF_RenderText_Blended(
             font.ptr.get(),
             text.data(),
             text.length(),
-            color
+            {cast(color.r), cast(color.g), cast(color.b), cast(color.a)}
         ), SDL_DestroySurface);
         auto texture = SDL_CreateTextureFromSurface(renderer, surface.get());
         if (not texture) return std::unexpected{SDL_GetError()};
@@ -301,9 +305,6 @@ template <class Ty> struct Mapped_Tag;
 template <> struct Mapped_Type<Tag::TAG> {using type = TYPE;};\
 template <> struct Mapped_Tag<TYPE> {static constexpr Tag value = Tag::TAG;}
 
-Map_Type_To_Tag(Lou_Vec2, SDL_FPoint);
-Map_Type_To_Tag(Lou_Rect, SDL_FRect);
-Map_Type_To_Tag(Lou_Color, SDL_Color);
 Map_Type_To_Tag(Lou_State, Lou_State);
 Map_Type_To_Tag(Lou_Console, Lou_Console);
 Map_Type_To_Tag(Lou_Keyboard, Lou_Keyboard);
@@ -336,6 +337,9 @@ concept Not_A_Pointer = not std::is_pointer_v<Ty>;
 template <class Ty>
 constexpr Tag Tag_For = detail::Mapped_Tag<Ty>::value;
 
+inline auto vget_metatable_name(Tag tag) -> std::string {
+    return std::string{compile_time::enum_item<Tag>(tag).name};
+};
 template <Tag Val>
 auto get_metatable_name() -> const char* {
     constexpr auto v = compile_time::enum_info<Val>().name;
@@ -377,52 +381,62 @@ template <class Ty, Tag Val = Tag_For<Ty>>
 auto new_tagged(lua_State *L) -> decltype(auto) {
     return make_tagged<Val, Ty>(L);
 }
-template <Tag Val, class Ty = Type_For<Val>>
+template <Tag Val, bool As_Light_Userdata = false, class Ty = Type_For<Val>>
 auto push_tagged(lua_State *L, Ty& ref) -> void {
-    auto& p = *static_cast<Ty**>(
-        lua_newuserdatatagged(L, sizeof(Ty**), detail::tag_reference_cast<Val, int>())
-    );
-    p = &ref;
-    push_metatable<Val>(L);
-    lua_setmetatable(L, -2);
+    if constexpr (As_Light_Userdata) {
+        lua_pushlightuserdatatagged(L, &ref, int(Val));
+    } else {
+        auto& p = *static_cast<Ty**>(
+            lua_newuserdatatagged(L, sizeof(Ty**), detail::tag_reference_cast<Val, int>())
+        );
+        p = &ref;
+        push_metatable<Val>(L);
+        lua_setmetatable(L, -2);
+    }
 }
-template <class Ty, Tag Val = Tag_For<Ty>>
+template <class Ty, bool As_Light_Userdata = false, Tag Val = Tag_For<Ty>>
 void push_tagged(lua_State* L, Ty& ref) {
-    push_tagged<Val>(L, ref);
+    push_tagged<Val, As_Light_Userdata>(L, ref);
 }
 template <Tag Val, class Ty = Type_For<Val>>
 constexpr auto is_tagged(lua_State* L, int idx) -> bool {
+    if (lua_islightuserdata(L, idx)) {
+        const int lu_tag = lua_lightuserdatatag(L, idx);
+        return lu_tag == static_cast<int>(Val);
+    }
     const int tag = lua_userdatatag(L, idx);
     return tag == static_cast<int>(Val)
         or tag == detail::tag_reference_cast<Val, int>();
 }
 
 template <Tag Val, class Ty = Type_For<Val>>
-constexpr auto to_tagged(lua_State* L, int idx) -> Ty& {
-    const int tag = lua_userdatatag(L, idx);
-    if (tag == static_cast<int>(Val)) {
-        return *static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));
-    } else if (tag == detail::tag_reference_cast<Val, int>()) {
-        return **static_cast<Ty**>(lua_touserdatatagged(L, idx, detail::tag_reference_cast<Val, int>()));
-    }
-    lua::type_error(L, idx, compile_time::enum_info<Val>().name);
-}
-template <class Ty, Tag Val = Tag_For<Ty>>
-constexpr auto to_tagged(lua_State* L, int idx) -> decltype(auto) {
-    return to_tagged<Val>(L, idx);
-}
-
-template <Tag Val, class Ty = Type_For<Val>>
 constexpr auto to_tagged_if(lua_State* L, int idx) -> Ty* {
-    const int tag = lua_userdatatag(L, idx);
-    if (tag == static_cast<int>(Val)) {
-        return static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));
-    } else if (tag == detail::tag_reference_cast<Val, int>()) {
-        return *static_cast<Ty**>(lua_touserdatatagged(L, idx, detail::tag_reference_cast<Val, int>()));
+    if (lua_islightuserdata(L, idx)) {
+        if (lua_lightuserdatatag(L, idx) == static_cast<int>(Val)) {
+            return static_cast<Ty*>(lua_tolightuserdatatagged(L, idx, static_cast<int>(Val)));
+        }
+    } else {
+        const int tag = lua_userdatatag(L, idx);
+        if (tag == static_cast<int>(Val)) {
+            return static_cast<Ty*>(lua_touserdatatagged(L, idx, static_cast<int>(Val)));
+        } else if (tag == detail::tag_reference_cast<Val, int>()) {
+            return *static_cast<Ty**>(lua_touserdatatagged(L, idx, detail::tag_reference_cast<Val, int>()));
+        }
     }
     return nullptr;
 }
 template <class Ty, Tag Val = Tag_For<Ty>>
 constexpr auto to_tagged_if(lua_State* L, int idx) -> decltype(auto) {
     return to_tagged_if<Val>(L, idx);
+}
+
+template <Tag Val, class Ty = Type_For<Val>>
+constexpr auto to_tagged(lua_State* L, int idx) -> Ty& {
+    auto p = to_tagged_if<Val>(L, idx);
+    if (p) return *p;
+    lua::type_error(L, idx, compile_time::enum_info<Val>().name);
+}
+template <class Ty, Tag Val = Tag_For<Ty>>
+constexpr auto to_tagged(lua_State* L, int idx) -> decltype(auto) {
+    return to_tagged<Val>(L, idx);
 }

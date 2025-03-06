@@ -239,16 +239,6 @@ auto namecall_atom(lua_State* L) -> std::pair<As, std::string_view> {
     auto namecall = lua_namecallatom(L, &atom);
     return {static_cast<As>(atom), namecall};
 }
-template<class Ty>
-inline auto check_vector(lua_State* L, int idx) -> std::span<const float> {
-    return std::span<const float>{luaL_checkvector(L, idx), LUA_VECTOR_SIZE};
-}
-inline auto to_vector(lua_State* L, int idx) -> std::span<const float> {
-    return std::span<const float>{lua_tovector(L, idx), LUA_VECTOR_SIZE};
-}
-inline void push(lua_State* L, std::span<const float> vector) {
-    lua_pushvector(L, vector[0], vector[1], vector[2]);
-} 
 template <class ...Tys>
 [[noreturn]] constexpr void error(lua_State* L, const std::format_string<Tys...>& fmt, Tys&&...args) {
     luaL_errorL(L, std::format(fmt, std::forward<Tys>(args)...).c_str());
@@ -275,6 +265,10 @@ template <class ...Ts>
     const char* str = luaL_tolstring(L, idx, &len);
     return {str, len};
 }
+using Vector_t = std::span<const float, LUA_VECTOR_SIZE>;
+inline void push(lua_State* L, Vector_t vector) {
+    lua_pushvector(L, vector[0], vector[1], vector[2], vector[3]);
+} 
 template <class ...Ts>
 void push(lua_State* L, const std::format_string<Ts...>& fmt, Ts&&...args) {
     lua_pushstring(L, std::format(fmt, std::forward<Ts>(args)...).c_str());
@@ -377,6 +371,8 @@ template <class Ty>
 constexpr auto to(lua_State* L, int idx) -> Ty {
     if constexpr (std::same_as<Ty, bool>) {
         return lua_toboolean(L, idx);
+    } else if constexpr (std::same_as<Ty, Vector_t>) {
+        return Vector_t{lua_tovector(L, idx), LUA_VECTOR_SIZE};
     } else if constexpr (std::same_as<Ty, char>) {
         return *lua_tostring(L, idx);
     } else if constexpr (Number_Compatible<Ty>) {
@@ -392,6 +388,8 @@ template <class Ty>
 constexpr auto check(lua_State* L, int idx) -> Ty {
     if constexpr (std::same_as<Ty, bool>) {
         return luaL_checkboolean(L, idx);
+    } else if constexpr (std::same_as<Ty, Vector_t>) {
+        return Vector_t{luaL_checkvector(L, idx), LUA_VECTOR_SIZE};
     } else if constexpr (std::same_as<Ty, char>) {
         return *luaL_checkstring(L, idx);
     } else if constexpr (Number_Compatible<Ty>) {
@@ -413,6 +411,8 @@ constexpr auto check_args(lua_State* L, int start = 1) -> std::tuple<Ty_Args...>
 template <class Ty> consteval auto default_value() -> decltype(auto) {
     if constexpr (std::same_as<Ty, bool>) {
         return false;
+    } else if constexpr (std::same_as<Ty, Vector_t>) {
+        return 0.f;
     } else if constexpr (Number_Compatible<Ty>) {
         return 0;
     } else if constexpr (String_Compatible<Ty>
@@ -426,6 +426,9 @@ template <class Ty, auto Default = default_value<Ty>()>
 constexpr auto opt(lua_State* L, int idx) -> Ty {
     if constexpr (std::same_as<Ty, bool>) {
         return luaL_optboolean(L, idx, Default);
+    } else if constexpr (std::same_as<Ty, Vector_t>) {
+        constexpr std::array def = {Default, Default, Default, Default};
+        return Vector_t{luaL_optvector(L, idx, def.data())};
     } else if constexpr (Number_Compatible<Ty>) {
         return static_cast<Ty>(luaL_optnumber(L, idx, Default));
     } else if constexpr (String_Compatible<Ty>

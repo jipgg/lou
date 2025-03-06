@@ -1,5 +1,4 @@
-local a = Vec2(100, 200)
-local b = Vec2(200, -100)
+local b = vector.create(200, -100, 0, 0)
 print(a + b)
 print(a - b)
 print(a * b)

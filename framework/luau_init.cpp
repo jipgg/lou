@@ -7,12 +7,13 @@
 #include <algorithm>
 #include <fstream>
 #include <print>
+#include "common.hpp"
 namespace fs = std::filesystem;
 namespace rngs = std::ranges;
 
 static bool codegen = false;
 
-static auto copts() -> Luau::CompileOptions {
+auto copts() -> Luau::CompileOptions {
     Luau::CompileOptions result = {};
     result.optimizationLevel = 2;
     result.debugLevel = 3;
@@ -260,10 +261,12 @@ template <typename Ty>
 concept Static_Meta_Pusher = requires (lua_State* L) {
 {Ty::push_metatable(L)} -> std::same_as<void>;
 };
-template <Static_Meta_Pusher Ty>
-static auto init_meta(lua_State* L) -> void {
+template <Static_Meta_Pusher Ty, Tag Val = Tag_For<Ty>>
+static auto init_tagged(lua_State* L) -> void {
     Ty::push_metatable(L);
     lua_pop(L, 1);
+    auto lightuserdataname = std::format("(light){}", compile_time::enum_item<Val>().name);
+    lua_setlightuserdataname(L, int(Val), lightuserdataname.c_str());
 }
 static auto set_up_print_and_warm(lua_State* L, Lou_Console& console) -> void {
     auto print = [](lua_State* L) -> int {
@@ -284,6 +287,76 @@ static auto set_up_print_and_warm(lua_State* L, Lou_Console& console) -> void {
     lua_setglobal(L, "warn");
 }
 
+template <auto Def_X = 0, auto Def_Y = 0, auto Def_Z = 0, auto Def_W = 0>
+static auto basic_ctor(lua_State* L) -> int {
+    if (lua_isvector(L, 1)) {
+        lua_pushvalue(L, 1);
+        return 1;
+    }
+    if (lua_isnone(L, 1)) {
+        lua_pushvector(L, Def_X, Def_Y, Def_Z, Def_W);
+        return 1;
+    }
+    return 0;
+};
+static auto rgba_ctor(lua_State* L) -> int {
+    auto value = basic_ctor(L);
+    if (value) return value;
+    auto [r, g, b, a] = lua::check_args<float, float, float, float>(L);
+    lua_pushvector(L, r / 255.f, g / 255.f, b / 255.f, a / 255.f);
+    return 1;
+}
+static auto rgb_ctor(lua_State* L) -> int {
+    auto value = basic_ctor<0, 0, 0, 1>(L);
+    if (value) return value;
+    auto [r, g, b] = lua::check_args<float, float, float>(L);
+    lua_pushvector(L, r / 255.f, g / 255.f, b / 255.f, 1);
+    return 1;
+}
+static auto vec4_ctor(lua_State* L) -> int {
+    auto basic = basic_ctor(L);
+    if (basic) return basic;
+    auto [x, y, z, w] = lua::check_args<float, float, float, float>(L);
+    lua_pushvector(L, x, y, z, w);
+    return 1;
+}
+static auto vec3_ctor(lua_State* L) -> int {
+    auto basic = basic_ctor(L);
+    if (basic) return basic;
+    auto [x, y, z] = lua::check_args<float, float, float>(L);
+    lua_pushvector(L, x, y, z, 0);
+    return 1;
+}
+static auto vec2_ctor(lua_State* L) -> int {
+    auto basic = basic_ctor(L);
+    if (basic) return basic;
+    auto [x, y] = lua::check_args<float, float>(L);
+    lua_pushvector(L, x, y, 0, 0);
+    return 1;
+}
+static void register_vector_aliases(lua_State* L) {
+    auto color_ctor = [](lua_State* L) -> int {
+        return basic_ctor<0, 0, 0, 1>(L);
+    };
+    const luaL_Reg ctors[] = {
+        {"rgb", rgb_ctor},
+        {"rgba", rgba_ctor},
+        {"vec2", vec2_ctor},
+        {"vec3", vec3_ctor},
+        {"vec4", vec4_ctor},
+        {"rect", vec4_ctor},
+        {"line", vec4_ctor},
+        {"totuple", [](lua_State* L) -> int {
+            auto v = lua::check<lua::Vector_t>(L, 1);
+            return lua::values(L, v[0], v[1], v[2], v[3]);
+        }},
+        {nullptr, nullptr}
+    };
+    lua_pushvalue(L, LUA_GLOBALSINDEX);
+    luaL_register(L, nullptr, ctors);
+    lua_pop(L, 1);
+}
+
 auto Lou_State::init_luau() -> void {
     owning.luau.reset(luaL_newstate());
     auto L = lua_state();
@@ -299,31 +372,23 @@ auto Lou_State::init_luau() -> void {
 #endif
         {NULL, NULL},
     };
-    init_meta<Lou_Console>(L);
-    init_meta<Lou_State>(L);
-    init_meta<Lou_Rect>(L);
-    init_meta<Lou_Color>(L);
-    init_meta<Lou_Vec2>(L);
-    init_meta<Lou_Keyboard>(L);
-    init_meta<Lou_Mouse>(L);
-    init_meta<Lou_Window>(L);
-    init_meta<Lou_Renderer>(L);
-    init_meta<Lou_Font>(L);
-    init_meta<Lou_Texture>(L);
-    init_meta<Lou_Create_Texture>(L);
-    init_meta<Lou_Callback_Handle>(L);
+    init_tagged<Lou_Console>(L);
+    init_tagged<Lou_State>(L);
+    init_tagged<Lou_Keyboard>(L);
+    init_tagged<Lou_Mouse>(L);
+    init_tagged<Lou_Window>(L);
+    init_tagged<Lou_Renderer>(L);
+    init_tagged<Lou_Font>(L);
+    init_tagged<Lou_Texture>(L);
+    init_tagged<Lou_Create_Texture>(L);
+    init_tagged<Lou_Callback_Handle>(L);
 
     lua_pushvalue(L, LUA_GLOBALSINDEX);
     luaL_register(L, nullptr, funcs);
     lua_pop(L, 1);
-    push_tagged(L, *this);
+    register_vector_aliases(L);
+    push_tagged<Lou_State, false>(L, *this);
     lua_setglobal(L, global_name);
-    Lou_Rect::push_constructor(L);
-    lua_setglobal(L, "Rect");
-    Lou_Color::push_constructor(L);
-    lua_setglobal(L, "Color");
-    Lou_Vec2::push_constructor(L);
-    lua_setglobal(L, "V2");
     Lou_Font::push_constructor(L);
     lua_setglobal(L, "Font");
     set_up_print_and_warm(L, console);
